@@ -1,5 +1,5 @@
-var ref$, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, getY, getM, dragMove, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, buildSankey, buildMargin, buildSvg, builGenderBar, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, buildHeatMap, lsExc, lsFunc;
-ref$ = require("prelude-ls"), Str = ref$.Str, fold1 = ref$.fold1, objToLists = ref$.objToLists, listsToObj = ref$.listsToObj, flatten = ref$.flatten, unique = ref$.unique, map = ref$.map, curry = ref$.curry;
+var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, getY, getM, dragMove, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, buildSankey, buildMargin, buildSvg, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, lsExc, lsFunc;
+ref$ = require("prelude-ls"), join = ref$.join, Str = ref$.Str, fold1 = ref$.fold1, objToLists = ref$.objToLists, listsToObj = ref$.listsToObj, flatten = ref$.flatten, unique = ref$.unique, map = ref$.map, curry = ref$.curry;
 ggl = {};
 ggl.margin = {
   top: 20,
@@ -93,7 +93,7 @@ ggl.age_grptbl = {
   "2": "45 到 64",
   "3": "65 及以上"
 };
-ggl.age_sextbl = {
+ggl.sextbl = {
   "1": "男",
   "2": "女"
 };
@@ -124,9 +124,6 @@ tsv2Json = function(tsvData){
     row.source = row.from_proid;
     row.target = row.po_id;
     row.value = row.count;
-    row.p23_new = ggl.p23tbl[row.p23_new];
-    row.age_grp = ggl.age_grptbl[row.age_grp];
-    row.sex = ggl.age_sextbl[row.sex];
     return jsonData.push(row);
   });
   return jsonData;
@@ -330,10 +327,10 @@ buildMargin = function(){
   var rslt;
   rslt = {};
   rslt.margin = {
-    top: 30,
-    left: 30,
-    bottom: 30,
-    right: 30
+    top: 10,
+    left: 10,
+    bottom: 10,
+    right: 10
   };
   rslt.w = 400 - rslt.margin.left - rslt.margin.right;
   rslt.h = 200 - rslt.margin.top - rslt.margin.bottom;
@@ -345,38 +342,6 @@ buildSvg = function(margin){
     "height": margin.h
   }).append("g").attr({
     "transform": "translate(" + margin.margin.left + "," + margin.margin.top + ")"
-  });
-};
-builGenderBar = function(data){
-  var bar, svg, ttl, sclBar, offset, clr, rct;
-  bar = buildMargin();
-  svg = buildSvg(bar);
-  ttl = fold1(curry$(function(x$, y$){
-    return x$ + y$;
-  }), data.map(function(it){
-    return it.value;
-  }));
-  sclBar = d3.scale.linear().domain([0, ttl]).range([0, bar.w]);
-  offset = 0;
-  data = data.filter(function(it, i){
-    it.x0 = offset;
-    return offset += sclBar(it.value);
-  });
-  clr = d3.scale.category10();
-  return rct = svg.selectAll(".rect").data(data).each(function(){}).enter().append("rect").attr({
-    "width": function(it){
-      return sclBar(it.value);
-    },
-    "height": 15,
-    "x": function(it, i){
-      return it.x0;
-    }
-  }).style({
-    "fill": function(it, i){
-      return clr(i);
-    }
-  }).append("title").text(function(it, i){
-    return it.name;
   });
 };
 renderAll = function(){
@@ -417,16 +382,45 @@ reBuildSvg = function(){
   return build;
 };
 reBuildHorizonBar = function(){
-  var loc, dt, sclBar, ttl, rct, rctAttr, txtAttr, build;
+  var loc, dt, sclBar, ttl, rct, toggleFilter, rctAttr, txtAttr, build;
   loc = buildMargin();
   loc.group = null;
   loc.dimension = null;
   loc.rectHeight = 15;
   loc.rectMargin = 2;
+  loc.savedFilter = [];
+  loc.txtTbl = null;
   dt = null;
   sclBar = null;
   ttl = null;
   rct = null;
+  toggleFilter = function(flt){
+    var idx;
+    idx = loc.savedFilter.indexOf(flt);
+    if (idx > -1) {
+      loc.savedFilter.splice(idx, 1);
+    } else {
+      loc.savedFilter.push(flt);
+    }
+    if (loc.savedFilter.length > 0) {
+      loc.dimension.filter(loc.savedFilter);
+      dt.selectAll(".rct" + join("", loc.savedFilter.map(function(it){
+        return ":not(.rct" + it + ")";
+      }))).style({
+        "opacity": 0.2
+      });
+      return dt.selectAll(join(",", loc.savedFilter.map(function(it){
+        return ".rct" + it;
+      }))).style({
+        "opacity": 1
+      });
+    } else {
+      loc.dimension.filter(null);
+      return dt.selectAll("rect").style({
+        "opacity": 1
+      });
+    }
+  };
   rctAttr = function(it){
     return it.attr({
       "width": function(it){
@@ -438,6 +432,9 @@ reBuildHorizonBar = function(){
       },
       "y": function(it, i){
         return i * (loc.rectHeight + loc.rectMargin);
+      },
+      "class": function(it, i){
+        return "rct rct" + it.key;
       }
     }).style({
       "fill": function(it, i){
@@ -454,7 +451,11 @@ reBuildHorizonBar = function(){
         return i * (loc.rectHeight + loc.rectMargin) + 13;
       }
     }).text(function(it, i){
-      return it.key;
+      if (loc.txtTbl === null) {
+        return it.key;
+      } else {
+        return loc.txtTbl[it.key];
+      }
     });
   };
   build = function(){
@@ -469,20 +470,25 @@ reBuildHorizonBar = function(){
       "class": "horBar"
     });
     rct = dt.append("rect").call(rctAttr).on("mousedown", function(){
-      var k;
-      k = d3.select(this).data()[0].key;
-      loc.dimension.filter(k);
+      toggleFilter(
+      d3.select(this).data()[0].key);
       return renderAll();
     });
     return dt.append("text").call(txtAttr);
   };
   build.render = function(){
-    console.log(loc.group);
+    ttl = fold1(curry$(function(x$, y$){
+      return x$ + y$;
+    }), loc.group.map(function(it){
+      return it.value;
+    }));
+    sclBar = d3.scale.linear().domain([0, ttl]).range([0, loc.w]);
     return rct.transition().call(rctAttr);
   };
   getSetter(build, loc);
   return build;
 };
+reBuildSankey = function(){};
 buildHeatMap = function(data){
   var heat, svg, sclHeat;
   heat = buildMargin();
@@ -517,13 +523,12 @@ buildHeatMap = function(data){
 lsExc = null;
 lsFunc = null;
 d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
-  var json, crx, allGrp, sexDim, ageDim, p23Dim, spdDim, cycDim, movDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, movGrp, lsDim, lsGrp, lsExc;
+  var json, crx, allGrp, sexDim, ageDim, p23Dim, spdDim, cycDim, movDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, movGrp, lsDim, lsGrp, lsExc, lsTbl, key2ST;
   json = tsv2Json(
   tsvBody);
-  buildSankey(
-  json2NodeLink(
+  console.log(
   sumupST(
-  json)));
+  json));
   crx = crossfilter(json);
   allGrp = crx.groupAll();
   sexDim = crx.dimension(function(it){
@@ -565,12 +570,30 @@ d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
   lsDim = [sexDim, ageDim, p23Dim, spdDim, cycDim, movDim];
   lsGrp = [sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, movGrp];
   lsExc = ["sex", "age", "p23", "spd", "cyc"];
-  lsFunc = lsExc.map(function(it){
-    return reBuildHorizonBar().group(eval(it + "Grp").all()).dimension(eval(it + "Dim"));
+  lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null];
+  lsFunc = lsExc.map(function(it, i){
+    var txtFunc;
+    txtFunc = lsTbl[i] !== null ? ggl[lsTbl[i]] : null;
+    return reBuildHorizonBar().group(eval(it + "Grp").all()).dimension(eval(it + "Dim")).txtTbl(txtFunc);
   });
   lsFunc.map(function(it){
     return it();
   });
+  key2ST = function(ls){
+    return ls.map(function(it){
+      var arr;
+      arr = it.key.split("_");
+      return {
+        source: arr[0],
+        target: arr[1],
+        value: it.value
+      };
+    });
+  };
+  buildSankey(
+  json2NodeLink(
+  key2ST(
+  movGrp.all())));
   return d3.selectAll('#total').text(function(){
     return crx.size();
   });

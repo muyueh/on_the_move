@@ -1,4 +1,4 @@
-{Str, fold1, obj-to-lists, lists-to-obj, flatten, unique, map, curry} = require "prelude-ls"
+{join, Str, fold1, obj-to-lists, lists-to-obj, flatten, unique, map, curry} = require "prelude-ls"
 
 ## actually don't know the value for male
 
@@ -95,7 +95,7 @@ ggl.age_grptbl = {
 	"3": "65 及以上"
 }
 
-ggl.age_sextbl = {
+ggl.sextbl = {
 	"1": "男"
 	"2": "女"
 }
@@ -127,11 +127,9 @@ tsv2Json = (tsvData)->
 		row.target = row.po_id
 		row.value = row.count
 
-		row.p23_new = ggl.p23tbl[row.p23_new]
-		row.age_grp = ggl.age_grptbl[row.age_grp]
-		row.sex = ggl.age_sextbl[row.sex]		
-		# row.month = getM row.cycle
-		# row.year = getY row.cycle
+		# row.p23_new = ggl.p23tbl[row.p23_new]
+		# row.age_grp = ggl.age_grptbl[row.age_grp]
+		# row.sex = ggl.sextbl[row.sex]		
 
 		jsonData.push row
 
@@ -151,6 +149,8 @@ sumupST = (jsonData)->
 		tbl[str].value += row.value
 
 	(obj-to-lists tbl)[1]
+
+# cross2List = (jsonData)->
 
 sumupV = curry (against, jsonData)->
 	tbl = {}
@@ -366,9 +366,11 @@ buildSankey = (data)->
 		# .text -> it.name
 
 
+
 buildMargin = ->
 	rslt = {}
-	rslt.margin = {top: 30, left: 30, bottom: 30, right: 30}
+	# rslt.margin = {top: 30, left: 30, bottom: 30, right: 30}
+	rslt.margin = {top: 10, left: 10, bottom: 10, right: 10}
 	rslt.w = 400 - rslt.margin.left - rslt.margin.right
 	rslt.h = 200 - rslt.margin.top - rslt.margin.bottom
 
@@ -388,86 +390,9 @@ buildSvg = (margin)->
 			"transform": "translate(" + margin.margin.left + "," + margin.margin.top + ")"
 		}
 
-builGenderBar = (data)->
-
-	## init
-	bar = buildMargin!
-	svg = buildSvg bar
-	## init end
-
-	ttl = (data.map -> it.value) |> fold1 (+), _
-	# console.log ttl
-
-	sclBar = d3.scale.linear!
-		.domain [0, ttl]
-		.range [0, bar.w]
-
-	offset = 0
-	data = data.filter (it, i)->
-		it.x0 = offset
-		offset += sclBar it.value
-
-	clr = d3.scale.category10!
-
-	rct = svg
-		.selectAll ".rect"
-		.data data
-		.each -> 
-		.enter!
-		.append "rect"
-		.attr {
-			"width": -> sclBar it.value
-			"height": 15
-			"x":(it, i)-> it.x0
-		}
-		.style {
-			
-			"fill": (it, i)-> clr i
-			# if it.name is "1" then ggl.clrBlue else ggl.clrRed
-		}
-		.append "title"
-		.text (it, i)-> it.name
-
 renderAll = ->
 	lsFunc.map -> it.render!
 
-
-# ## add national wise benchmark
-# buildHorizonBar = (group)->
-# 	## init
-# 	bar = buildMargin!
-# 	svg = buildSvg bar
-# 	## init end
-
-# 	ttl = (group.map -> it.value) |> fold1 (+), _
-
-# 	sclBar = d3.scale.linear!
-# 		.domain [0, ttl]
-# 		.range [0, bar.w]
-
-# 	dt = svg.selectAll ".rect"
-# 		.data group.sort (a, b)-> b.value - a.value
-# 		.enter!
-
-# 	rct = dt.append "rect"
-# 		.attr {
-# 			"width": -> sclBar it.value
-# 			"height": 15
-# 			"x":(it, i)-> it.x0
-# 			"y":(it, i)-> i * 17
-# 		}
-# 		.style {
-# 			"fill": (it, i)-> ggl.clrOrange
-# 		}
-# 		.append "title"
-# 		.text (it, i)-> it.key
-
-# 	dt.append "text"
-# 		.attr {
-# 			"x":(it, i)-> it.x0
-# 			"y":(it, i)-> i * 17 + 13
-# 		}
-# 		.text (it, i)-> it.key
 
 
 getSetter = (build, loc)->
@@ -509,12 +434,49 @@ reBuildHorizonBar = ->
 	loc.dimension = null
 	loc.rectHeight = 15
 	loc.rectMargin = 2
-	# console.log loc
+	loc.savedFilter = []
+	loc.txtTbl = null
+
 
 	dt = null
 	sclBar = null
 	ttl = null
 	rct = null
+
+
+
+##TODO multi criteria select doesn't seem to be working correctly
+	toggleFilter = (flt)->
+		idx = loc.savedFilter.indexOf flt
+		if idx > -1 then loc.savedFilter.splice(idx, 1) else loc.savedFilter.push flt
+
+		# console.log loc.savedFilter
+		if loc.savedFilter.length > 0
+			loc.dimension.filter loc.savedFilter
+
+			dt
+				.selectAll ".rct"+ (join "", (loc.savedFilter.map -> ":not(.rct" + it + ")" ))
+				.style {
+					"opacity": 0.2
+				}
+				
+			dt
+				.selectAll(join ",", (loc.savedFilter.map -> ".rct" + it ))
+				.style {
+					"opacity": 1
+				}	
+			
+			# transition
+		else 
+			loc
+				.dimension
+				.filter null
+
+			dt
+				.selectAll "rect"
+				.style {
+					"opacity": 1
+				}	
 
 	rctAttr = ->
 		it.attr {
@@ -522,6 +484,7 @@ reBuildHorizonBar = ->
 			"height": loc.rectHeight
 			"x":(it, i)-> 0
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin)
+			"class": (it, i)-> "rct rct" + it.key 
 		}
 		.style {
 			"fill": (it, i)-> ggl.clrOrange
@@ -531,15 +494,15 @@ reBuildHorizonBar = ->
 			"x":(it, i)-> 100
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin) + 13
 		}
-		.text (it, i)-> it.key
+		.text (it, i)-> 
+
+			if loc.txtTbl is null then it.key else loc.txtTbl[it.key]
+			
 
 
 	build = ->
-		## will this build too much duplicated chart?
 
 		##auto adjust chart length
-		# loc.height := loc.group.length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom
-
 		loc.svg := reBuildSvg!.h(loc.group.length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom)
 
 		ttl := (loc.group.map -> it.value) |> fold1 (+), _
@@ -559,8 +522,9 @@ reBuildHorizonBar = ->
 		rct := dt.append "rect"
 			.call rctAttr
 			.on "mousedown", ->
-				k = d3.select(@).data![0].key
-				loc.dimension.filter k
+				d3.select(@).data![0].key |> toggleFilter
+				
+
 				renderAll!
 
 		dt.append "text"
@@ -568,7 +532,10 @@ reBuildHorizonBar = ->
 			
 
 	build.render = ->
-		console.log loc.group
+		ttl := (loc.group.map -> it.value) |> fold1 (+), _
+		sclBar := d3.scale.linear!
+			.domain [0, ttl]
+			.range [0, loc.w]
 
 		rct
 			.transition!
@@ -581,6 +548,9 @@ reBuildHorizonBar = ->
 	getSetter build, loc
 	build
 
+
+
+reBuildSankey = ->
 
 
 buildHeatMap = (data)->
@@ -623,9 +593,11 @@ err, tsvBody <- d3.tsv "../transform/group/transfer_t10.tsv"
 
 json = tsvBody |> tsv2Json 
 
-# json |> sumupST |> console.log
+json |> sumupST |> console.log
 
-json |> sumupST |> json2NodeLink |> buildSankey
+# json |> sumupST |> json2NodeLink |> buildSankey
+
+
 
 # json |> sumSex |> builGenderBar
 # json |> sumAge |> builGenderBar
@@ -660,6 +632,8 @@ cycGrp = cycDim.group -> it
 movGrp = movDim.group -> it
 
 
+
+
 lsDim = [
 	sexDim
 	ageDim
@@ -680,23 +654,31 @@ lsGrp = [
 
 # lsExc = [ "sex" "age" "p23" "spd" "cyc" "mov"]
 lsExc = [ "sex" "age" "p23" "spd" "cyc"]
-lsFunc := lsExc.map ->
+lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null]
+lsFunc := lsExc.map (it, i)->
+	txtFunc = (if lsTbl[i] is not null then ggl[lsTbl[i]] else null)
 	(reBuildHorizonBar!
-			.group (eval(it + "Grp")).all!
-			.dimension (eval(it + "Dim")))
-
-
+		.group (eval(it + "Grp")).all!
+		.dimension (eval(it + "Dim"))
+		.txtTbl txtFunc
+	)
 
 lsFunc.map -> it!
 
-# op = (it, ->
-	# console.log it
-	# buildHorizonBar it
 	
+##input: key: 360_440
+##output: source: , target: 
+key2ST = (ls)-> 
+	ls.map -> 
+		arr = it.key.split "_"
+		{
+			source: arr[0]
+			target: arr[1]
+			value: it.value
+		}
 
-
-# .dimension(lsDim[i])	
-# lsGrp.map((it,i)-> it.all! |> (reBuildHorizonBar!.group(_))!)
+movGrp.all! |> key2ST |> json2NodeLink |> buildSankey
+	
 
 
 # console.log sexGrp.all!.top(Infinity).length
@@ -710,53 +692,6 @@ lsFunc.map -> it!
 
 
 
-
-
-# charLS = [
-# 	horChart!
-# 		.dimension sexDim
-# 		.group sexGrp
-# ## to be continued here
-# ]
-
-# chart = d3.selectAll ".chart"
-# 	.data charLS
-# # 	.each -> 
-
-
-
-# horChart!
-# 	if not horChart.id then horChart.id = 0
-# 	margin = {top: 10, right: 10, bottom: 20: left: 10}
-# 	x = null
-# 	y = d3.scale.linear!.range [100, 0]
-# 	id = horChart.id++
-# 	dimension = null
-# 	group = null
-
-# 	chart = (div)->
-# 		width = x.range![1]
-# 		height = y.range![0]
-
-# 		y.domain [0, group.top 1 [0].value]
-
-# 		div.each ->
-# 			div = d3.select @
-# 			g = div.select "g"
-
-# 			if g.empty!
-# 				g = div.append "svg"
-# 					.attr {
-# 						"width": width + margin.left + margin.right
-# 						"height": height + margin.top + margin.bottom
-# 					}
-# 					.append "g"
-# 					.attr {
-# 						"transform": "translate(" + margin.left + "," + margin.top + ")"
-# 					}
-
-# 				g.selectAll ".bar"
-# 				.data []
 
 
 
