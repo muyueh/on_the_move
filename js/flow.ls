@@ -16,6 +16,10 @@ ggl.clrOrange = "rgb(253, 141, 60)"
 ggl.clrRed = "rgb(215, 48, 39)"
 ggl.clrBlue = "rgb(69, 117, 180)"
 
+lsExc = null
+lsFunc = null
+sk = null
+
 ggl.nmtbl = {
 	"110":	"北京市"
 	"120":	"天津市"
@@ -99,6 +103,10 @@ ggl.sextbl = {
 	"1": "男"
 	"2": "女"
 }
+
+movGrp = null
+movDim = null
+sexDim = null
 
 getY = (str)-> +(Str.take 4, str)
 getM = (str)-> +(Str.drop 4, str)
@@ -191,6 +199,17 @@ json2NodeLink = (jsonData)->
 
 	rslt
 
+
+##input: key: 360_440
+##output: source: , target: 
+key2ST = (ls)-> 
+	ls.map -> 
+		arr = it.key.split "_"
+		{
+			source: arr[0]
+			target: arr[1]
+			value: it.value
+		}
 
 ggl.sankey = d3.sankey!
 	.size [ggl.w - ggl.snky.right, ggl.h - ggl.snky.bottom]
@@ -390,8 +409,12 @@ buildSvg = (margin)->
 			"transform": "translate(" + margin.margin.left + "," + margin.margin.top + ")"
 		}
 
+insideCrox = (->)
 renderAll = ->
 	lsFunc.map -> it.render!
+	sk.render!
+	# insideCrox!
+
 
 
 
@@ -452,7 +475,7 @@ reBuildHorizonBar = ->
 
 		# console.log loc.savedFilter
 		if loc.savedFilter.length > 0
-			loc.dimension.filter loc.savedFilter
+			loc.dimension.filter(-> (loc.savedFilter.indexOf it) > -1 )
 
 			dt
 				.selectAll ".rct"+ (join "", (loc.savedFilter.map -> ":not(.rct" + it + ")" ))
@@ -466,11 +489,8 @@ reBuildHorizonBar = ->
 					"opacity": 1
 				}	
 			
-			# transition
 		else 
-			loc
-				.dimension
-				.filter null
+			loc.dimension.filter null
 
 			dt
 				.selectAll "rect"
@@ -503,16 +523,16 @@ reBuildHorizonBar = ->
 	build = ->
 
 		##auto adjust chart length
-		loc.svg := reBuildSvg!.h(loc.group.length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom)
+		loc.svg := (reBuildSvg!.h(loc.group.all!.length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom))!
 
-		ttl := (loc.group.map -> it.value) |> fold1 (+), _
+		ttl := (loc.group.all!.map -> it.value) |> fold1 (+), _
 		sclBar := d3.scale.linear!
 			.domain [0, ttl]
 			.range [0, loc.w]
 
-		dt := loc.svg!
+		dt := loc.svg
 			.selectAll ".rect"
-			.data loc.group
+			.data loc.group.all!
 			.enter!
 			.append "g"
 			.attr {
@@ -523,8 +543,6 @@ reBuildHorizonBar = ->
 			.call rctAttr
 			.on "mousedown", ->
 				d3.select(@).data![0].key |> toggleFilter
-				
-
 				renderAll!
 
 		dt.append "text"
@@ -532,7 +550,9 @@ reBuildHorizonBar = ->
 			
 
 	build.render = ->
-		ttl := (loc.group.map -> it.value) |> fold1 (+), _
+		# console.log (movGrp.top 1)[0]
+		# console.log loc.group[0]
+		ttl := (loc.group.all!.map -> it.value) |> fold1 (+), _
 		sclBar := d3.scale.linear!
 			.domain [0, ttl]
 			.range [0, loc.w]
@@ -550,7 +570,296 @@ reBuildHorizonBar = ->
 
 
 
+# ggl.margin = {top: 20, left: 50, right: 100, bottom: 50}
+# ggl.w = 400 - ggl.margin.left - ggl.margin.right
+# ggl.h = 800 - ggl.margin.top - ggl.margin.bottom
+
+
 reBuildSankey = ->
+	loc = {}
+	loc.margin = {top: 20, left: 50, right: 100, bottom: 50}
+	loc.w = 400 - loc.margin.left - loc.margin.right
+	loc.h = 800 - loc.margin.top - loc.margin.bottom
+
+	loc.group = null
+	loc.rawData = null
+	loc.dimension = null
+	loc.path = null
+	loc.linkEnter = null
+	loc.node = null
+	loc.sankey = null
+
+
+	# loc.rectHeight = 15
+	# loc.savedFilter = []
+	# loc.txtTbl = null
+	highStyle = ->
+		it.style {
+			"opacity": 0.8
+		}
+
+	normStyle = ->
+		it.style {
+			"opacity": 0.4
+		}
+
+	hideStyle = ->
+		it.style {
+			"opacity": 0.1
+		}
+
+	tOrS = ->
+		return if it.sourceLinks.length > it.targetLinks.length then "s" else "t"
+
+	tOrSJson = -> 
+		if it.sourceLinks.length < it.targetLinks.length
+			return {
+				i: "t"
+				j: "s"
+				k: "target"
+				l: "source"
+			}
+		else
+			return {
+				i: "s"
+				j: "t"
+				k: "source"
+				l: "target"
+			}
+
+	reInit = ->
+		console.log movGrp.all![0]
+
+		loc.group := (loc.rawData |> key2ST |> json2NodeLink )
+		# console.log loc.rawData[0]
+
+		# console.log loc.rawData.length
+		# console.log loc.group.links[0]
+		# .nodes[0].dy
+		loc.sankey := d3.sankey!
+			.size [loc.w - loc.margin.right, loc.h - loc.margin.bottom]
+			.nodeWidth 15
+			.nodePadding 10
+			.nodes loc.group.nodes
+			.links loc.group.links
+			.layout 1
+
+		loc.path := loc.sankey.reversibleLink!
+
+	build = ->
+		loc.svg := (reBuildSvg!
+					.h loc.h
+					.w loc.w
+					.margin loc.margin
+					.selector ".mainchart")!
+		
+		loc.sankey := d3.sankey!
+			.size [loc.w - loc.margin.right, loc.h - loc.margin.bottom]
+			.nodeWidth 15
+			.nodePadding 10
+
+		reInit!
+		
+		loc.linkEnter := loc.svg
+			.append "g"
+			.selectAll ".linkGrp"
+			.data loc.group.links
+			.enter!
+			.append "g"
+			.attr {
+				"class": "linkGrp"
+			}
+			.sort (a, b)-> b.dy - a.dy
+
+		loc.paths := loc.linkEnter.append "path"
+			.attr {
+				"fill": ggl.clrOrange			
+				"d": loc.path 1
+				"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
+			}
+			.call normStyle
+			# .on "mouseover", -> 
+			# 	d3.select @ 
+			# 		.call highStyle
+
+			# 	d3.selectAll ".ps" + it.source.name
+			# 		.text ~~(it.value / it.source.value * 100 ) + "%"
+
+			# 	d3.selectAll ".pt" + it.target.name
+			# 		.text ~~(it.value / it.target.value * 100 ) + "%"
+
+			# .on "mouseout", -> 
+			# 	d3.select @ 
+			# 		.call normStyle
+
+			# 	d3.selectAll ".ps" + it.source.name
+			# 		.text ""
+
+			# 	d3.selectAll ".pt" + it.target.name
+			# 		.text ""
+
+		# loc.node := loc.svg
+		# 	.append "g"
+		# 	.selectAll ".node"
+		# 	.data loc.group.nodes
+		# 	.enter!
+		# 	.append "g"
+		# 	.attr {
+		# 		"class": "node"
+		# 		"transform": -> "translate(" + it.x + "," + it.y + ")"
+		# 	}
+			# .call(
+			# 	d3.behavior.drag!
+			# 		.origin -> it
+			# 		.on "dragstart", -> @.parentNode.appendChild @
+			# 		.on "drag", dragMove
+			# 	)
+
+		# loc.node.append "rect"
+		# 	.attr {
+		# 		"height": -> it.dy
+		# 		"width": loc.sankey.nodeWidth!
+		# 		"fill": ggl.clrOrange
+		# 		"class": "sankeyRect"
+		# 	}
+			# .on "mouseover", ->
+			# 	d3.selectAll ".linkPath:not(" + (tOrS it)  + it.name + ")"
+			# 		.call hideStyle
+			# 	d3.selectAll "." + (tOrS it)  + it.name
+			# 		.call highStyle
+
+			# 	r = tOrSJson it
+			# 	it[r.k + "Links"]map (lk)->
+			# 		d3.selectAll ".p" + r.j + lk[r.l]name
+			# 			.text -> 
+			# 				s = ~~(lk.value / lk[r.l]value * 100 )
+			# 				return if s is 0 then "" else s + "%"
+			# .on "mouseout", ->
+			# 	d3.selectAll ".linkPath"
+			# 		.call normStyle
+
+			# 	r = tOrSJson it
+
+			# 	it[r.k + "Links"]map (lk)->
+			# 		d3.selectAll ".p" + r.j + lk[r.l]name
+			# 			.text ""
+
+
+		# loc.node.append "text"
+		# 	.attr {
+		# 		"x": -6
+		# 		"y": -> it.dy / 2
+		# 		"dy": "0.35em"
+		# 		"text-anchor": "end"
+		# 		"transform": null
+		# 	}
+		# 	.text -> ggl.nmtbl[it.name]
+
+		# loc.node.append "text"
+		# 	.attr {
+		# 		"x": 45
+		# 		"y": -> it.dy / 2
+		# 		"dy": "0.35em"
+		# 		"text-anchor": "end"
+		# 		"transform": null
+		# 		"class": -> "p" + (tOrS it)  + it.name
+		# 	}
+		# 	# .text -> it.name
+
+
+	build.render = ->
+		reInit!
+
+		console.log loc.group.links[0]
+
+		loc.linkEnter := loc.svg
+			# .append "g"
+			.selectAll ".linkGrp"
+			.data loc.group.links
+
+		loc.paths
+			.attr {
+				"fill": ggl.clrOrange			
+				"d": loc.path 1
+				"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
+			}
+			# .call normStyle
+
+
+
+
+
+		# loc.node |> console.log
+		# d3.selectAll "path"
+		# loc.node
+		# 	.selectAll "path"
+		# 	.attr {
+		# 		"fill": "black"
+		# 	}
+
+		# loc.node := loc.svg
+			# .append "g"
+		# d3
+		# 	.selectAll ".node"
+		# 	.data loc.group.nodes
+		# 	.enter!
+		# 	.append "g"
+		# 	.attr {
+		# 		"class": "node"
+		# 		"transform": -> "translate(" + it.x + "," + it.y + ")"
+		# 		"fill": "black"
+		# 	}
+
+
+		# loc.paths
+		# 	.attr {
+		# 		"d": loc.path 1
+		# 		"fill": "black"
+		# 	}
+
+		# loc.node
+		# 	.data loc.group.nodes
+
+		# loc.node
+		# 	# .select "g"
+		# 	# .data loc.group.nodes
+		# 	.selectAll "rect"
+		# 	.attr {
+		# 		"height": -> it.dy
+		# 		"fill": "black"
+		# 	}
+
+
+		# loc.linkEnter := loc.svg
+		# 	.selectAll ".linkGrp"
+		# 	.data loc.group.links
+		# 	# .enter!
+		# 	# .sort (a, b)-> b.dy - a.dy
+
+		# loc.paths := d3.selectAll "path"
+		# # loc.linkEnter
+		# 	# .selectAll "path"
+		# 	# .transition!
+
+		# 	# .append "path"
+		# 	.attr {
+		# 	# 	"fill": ggl.clrOrange			
+		# 		"d": loc.path 1
+		# 	# 	"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
+		# 	}
+		# 	# .call normStyle
+
+
+
+	build.setGroup = (data)->
+		loc.group := (data |> key2ST |> json2NodeLink )
+		build
+
+	getSetter build, loc
+	build
+
+
+
 
 
 buildHeatMap = (data)->
@@ -586,14 +895,13 @@ buildHeatMap = (data)->
 		}
 
 
-lsExc = null
-lsFunc = null
+
 
 err, tsvBody <- d3.tsv "../transform/group/transfer_t10.tsv"
 
 json = tsvBody |> tsv2Json 
 
-json |> sumupST |> console.log
+# json |> sumupST |> console.log
 
 # json |> sumupST |> json2NodeLink |> buildSankey
 
@@ -617,88 +925,82 @@ json |> sumupST |> console.log
 crx = crossfilter  json
 allGrp = crx.groupAll!
 
-sexDim = crx.dimension -> it.sex
+sexDim := crx.dimension -> it.sex
 ageDim = crx.dimension -> it.age_grp
 p23Dim = crx.dimension -> it.p23_new
 spdDim = crx.dimension -> it.sum_spend1000
 cycDim = crx.dimension -> it.cycle
-movDim = crx.dimension -> it.from_proid + "_" + it.po_id
-
-sexGrp = sexDim.group -> it
-ageGrp = ageDim.group -> it
-p23Grp = p23Dim.group -> it
-spdGrp = spdDim.group -> Math.round(it / 100) * 100
-cycGrp = cycDim.group -> it
-movGrp = movDim.group -> it
+movDim := crx.dimension -> it.from_proid + "_" + it.po_id
 
 
 
+sexGrp = sexDim.group(-> it).reduceSum(->
+	it.count
+	)
+ageGrp = ageDim.group(-> it).reduceSum(->
+	it.count
+	)
+p23Grp = p23Dim.group(-> it).reduceSum(->
+	it.count
+	)
+spdGrp = spdDim.group(-> Math.round(it / 100) * 100).reduceSum(->
+	it.count
+	)
+cycGrp = cycDim.group(-> it).reduceSum(->
+	it.count
+	)
+movGrp := movDim.group(-> it).reduceSum(->
+	it.count
+	)
 
-lsDim = [
-	sexDim
-	ageDim
-	p23Dim
-	spdDim
-	cycDim
-	movDim
-]
 
-lsGrp = [
-	sexGrp
-	ageGrp
-	p23Grp
-	spdGrp
-	cycGrp
-	movGrp
-]
 
-# lsExc = [ "sex" "age" "p23" "spd" "cyc" "mov"]
+
+
 lsExc = [ "sex" "age" "p23" "spd" "cyc"]
 lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null]
+
 lsFunc := lsExc.map (it, i)->
 	txtFunc = (if lsTbl[i] is not null then ggl[lsTbl[i]] else null)
-	(reBuildHorizonBar!
-		.group (eval(it + "Grp")).all!
+	p = (reBuildHorizonBar!
+		.group (eval(it + "Grp"))
 		.dimension (eval(it + "Dim"))
 		.txtTbl txtFunc
 	)
+	p!
+	p
 
-lsFunc.map -> it!
 
-	
-##input: key: 360_440
-##output: source: , target: 
-key2ST = (ls)-> 
-	ls.map -> 
-		arr = it.key.split "_"
-		{
-			source: arr[0]
-			target: arr[1]
-			value: it.value
-		}
-
-movGrp.all! |> key2ST |> json2NodeLink |> buildSankey
 	
 
 
-# console.log sexGrp.all!.top(Infinity).length
+# movGrp.all! |> key2ST |> json2NodeLink |> buildSankey
 
-# console.log cycDim.filter("201401").top(Infinity).length
-# console.log sexDim.filter("女").top(Infinity).length
-# console.log sexDim.filter("男").top(Infinity).length
-# console.log sexGrp.top(Infinity)
-# console.log ageGrp.all!
-# console.log p23Grp.all!
+sk := (movGrp.all! |> reBuildSankey!.rawData _)
+sk!
 
+# # insideCrox := ->
+# 	# console.log movGrp.all![0]
 
 
+# # console.log sexGrp.all!.top(Infinity).length
+
+# # console.log cycDim.filter("201401").top(Infinity).length
+# # console.log sexDim.filter("女").top(Infinity).length
+# # console.log sexDim.filter("男").top(Infinity).length
+# # console.log sexGrp.top(Infinity)
+# # console.log ageGrp.all!
+# # console.log p23Grp.all!
 
 
 
 
-### this is only length of aggregate group; not correct size
-d3.selectAll '#total'
-	.text -> crx.size!
+
+
+
+# ### this is only length of aggregate group; not correct size
+# d3.selectAll '#total'
+# 	.text -> crx.size!
 
 
 

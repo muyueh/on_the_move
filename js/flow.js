@@ -1,4 +1,4 @@
-var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, getY, getM, dragMove, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, buildSankey, buildMargin, buildSvg, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, lsExc, lsFunc;
+var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, movGrp, movDim, sexDim, getY, getM, dragMove, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildSankey, buildMargin, buildSvg, insideCrox, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap;
 ref$ = require("prelude-ls"), join = ref$.join, Str = ref$.Str, fold1 = ref$.fold1, objToLists = ref$.objToLists, listsToObj = ref$.listsToObj, flatten = ref$.flatten, unique = ref$.unique, map = ref$.map, curry = ref$.curry;
 ggl = {};
 ggl.margin = {
@@ -17,6 +17,9 @@ ggl.paths = null;
 ggl.clrOrange = "rgb(253, 141, 60)";
 ggl.clrRed = "rgb(215, 48, 39)";
 ggl.clrBlue = "rgb(69, 117, 180)";
+lsExc = null;
+lsFunc = null;
+sk = null;
 ggl.nmtbl = {
   "110": "北京市",
   "120": "天津市",
@@ -97,6 +100,9 @@ ggl.sextbl = {
   "1": "男",
   "2": "女"
 };
+movGrp = null;
+movDim = null;
+sexDim = null;
 getY = function(str){
   return +Str.take(4, str);
 };
@@ -192,6 +198,17 @@ json2NodeLink = function(jsonData){
     };
   });
   return rslt;
+};
+key2ST = function(ls){
+  return ls.map(function(it){
+    var arr;
+    arr = it.key.split("_");
+    return {
+      source: arr[0],
+      target: arr[1],
+      value: it.value
+    };
+  });
 };
 ggl.sankey = d3.sankey().size([ggl.w - ggl.snky.right, ggl.h - ggl.snky.bottom]).nodeWidth(15).nodePadding(10);
 ggl.path = ggl.sankey.reversibleLink();
@@ -344,10 +361,12 @@ buildSvg = function(margin){
     "transform": "translate(" + margin.margin.left + "," + margin.margin.top + ")"
   });
 };
+insideCrox = function(){};
 renderAll = function(){
-  return lsFunc.map(function(it){
+  lsFunc.map(function(it){
     return it.render();
   });
+  return sk.render();
 };
 getSetter = function(build, loc){
   var i$, results$ = [];
@@ -403,7 +422,9 @@ reBuildHorizonBar = function(){
       loc.savedFilter.push(flt);
     }
     if (loc.savedFilter.length > 0) {
-      loc.dimension.filter(loc.savedFilter);
+      loc.dimension.filter(function(it){
+        return loc.savedFilter.indexOf(it) > -1;
+      });
       dt.selectAll(".rct" + join("", loc.savedFilter.map(function(it){
         return ":not(.rct" + it + ")";
       }))).style({
@@ -459,14 +480,14 @@ reBuildHorizonBar = function(){
     });
   };
   build = function(){
-    loc.svg = reBuildSvg().h(loc.group.length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom);
+    loc.svg = reBuildSvg().h(loc.group.all().length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom)();
     ttl = fold1(curry$(function(x$, y$){
       return x$ + y$;
-    }), loc.group.map(function(it){
+    }), loc.group.all().map(function(it){
       return it.value;
     }));
     sclBar = d3.scale.linear().domain([0, ttl]).range([0, loc.w]);
-    dt = loc.svg().selectAll(".rect").data(loc.group).enter().append("g").attr({
+    dt = loc.svg.selectAll(".rect").data(loc.group.all()).enter().append("g").attr({
       "class": "horBar"
     });
     rct = dt.append("rect").call(rctAttr).on("mousedown", function(){
@@ -479,7 +500,7 @@ reBuildHorizonBar = function(){
   build.render = function(){
     ttl = fold1(curry$(function(x$, y$){
       return x$ + y$;
-    }), loc.group.map(function(it){
+    }), loc.group.all().map(function(it){
       return it.value;
     }));
     sclBar = d3.scale.linear().domain([0, ttl]).range([0, loc.w]);
@@ -488,7 +509,105 @@ reBuildHorizonBar = function(){
   getSetter(build, loc);
   return build;
 };
-reBuildSankey = function(){};
+reBuildSankey = function(){
+  var loc, highStyle, normStyle, hideStyle, tOrS, tOrSJson, reInit, build;
+  loc = {};
+  loc.margin = {
+    top: 20,
+    left: 50,
+    right: 100,
+    bottom: 50
+  };
+  loc.w = 400 - loc.margin.left - loc.margin.right;
+  loc.h = 800 - loc.margin.top - loc.margin.bottom;
+  loc.group = null;
+  loc.rawData = null;
+  loc.dimension = null;
+  loc.path = null;
+  loc.linkEnter = null;
+  loc.node = null;
+  loc.sankey = null;
+  highStyle = function(it){
+    return it.style({
+      "opacity": 0.8
+    });
+  };
+  normStyle = function(it){
+    return it.style({
+      "opacity": 0.4
+    });
+  };
+  hideStyle = function(it){
+    return it.style({
+      "opacity": 0.1
+    });
+  };
+  tOrS = function(it){
+    return it.sourceLinks.length > it.targetLinks.length ? "s" : "t";
+  };
+  tOrSJson = function(it){
+    if (it.sourceLinks.length < it.targetLinks.length) {
+      return {
+        i: "t",
+        j: "s",
+        k: "target",
+        l: "source"
+      };
+    } else {
+      return {
+        i: "s",
+        j: "t",
+        k: "source",
+        l: "target"
+      };
+    }
+  };
+  reInit = function(){
+    console.log(movGrp.all()[0]);
+    loc.group = json2NodeLink(
+    key2ST(
+    loc.rawData));
+    loc.sankey = d3.sankey().size([loc.w - loc.margin.right, loc.h - loc.margin.bottom]).nodeWidth(15).nodePadding(10).nodes(loc.group.nodes).links(loc.group.links).layout(1);
+    return loc.path = loc.sankey.reversibleLink();
+  };
+  build = function(){
+    loc.svg = reBuildSvg().h(loc.h).w(loc.w).margin(loc.margin).selector(".mainchart")();
+    loc.sankey = d3.sankey().size([loc.w - loc.margin.right, loc.h - loc.margin.bottom]).nodeWidth(15).nodePadding(10);
+    reInit();
+    loc.linkEnter = loc.svg.append("g").selectAll(".linkGrp").data(loc.group.links).enter().append("g").attr({
+      "class": "linkGrp"
+    }).sort(function(a, b){
+      return b.dy - a.dy;
+    });
+    return loc.paths = loc.linkEnter.append("path").attr({
+      "fill": ggl.clrOrange,
+      "d": loc.path(1),
+      "class": function(it){
+        return "t" + it.target.name + " s" + it.source.name + " linkPath";
+      }
+    }).call(normStyle);
+  };
+  build.render = function(){
+    reInit();
+    console.log(loc.group.links[0]);
+    loc.linkEnter = loc.svg.selectAll(".linkGrp").data(loc.group.links);
+    return loc.paths.attr({
+      "fill": ggl.clrOrange,
+      "d": loc.path(1),
+      "class": function(it){
+        return "t" + it.target.name + " s" + it.source.name + " linkPath";
+      }
+    });
+  };
+  build.setGroup = function(data){
+    loc.group = json2NodeLink(
+    key2ST(
+    data));
+    return build;
+  };
+  getSetter(build, loc);
+  return build;
+};
 buildHeatMap = function(data){
   var heat, svg, sclHeat;
   heat = buildMargin();
@@ -520,15 +639,10 @@ buildHeatMap = function(data){
     }
   });
 };
-lsExc = null;
-lsFunc = null;
 d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
-  var json, crx, allGrp, sexDim, ageDim, p23Dim, spdDim, cycDim, movDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, movGrp, lsDim, lsGrp, lsExc, lsTbl, key2ST;
+  var json, crx, allGrp, ageDim, p23Dim, spdDim, cycDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, lsExc, lsTbl;
   json = tsv2Json(
   tsvBody);
-  console.log(
-  sumupST(
-  json));
   crx = crossfilter(json);
   allGrp = crx.groupAll();
   sexDim = crx.dimension(function(it){
@@ -551,52 +665,45 @@ d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
   });
   sexGrp = sexDim.group(function(it){
     return it;
+  }).reduceSum(function(it){
+    return it.count;
   });
   ageGrp = ageDim.group(function(it){
     return it;
+  }).reduceSum(function(it){
+    return it.count;
   });
   p23Grp = p23Dim.group(function(it){
     return it;
+  }).reduceSum(function(it){
+    return it.count;
   });
   spdGrp = spdDim.group(function(it){
     return Math.round(it / 100) * 100;
+  }).reduceSum(function(it){
+    return it.count;
   });
   cycGrp = cycDim.group(function(it){
     return it;
+  }).reduceSum(function(it){
+    return it.count;
   });
   movGrp = movDim.group(function(it){
     return it;
+  }).reduceSum(function(it){
+    return it.count;
   });
-  lsDim = [sexDim, ageDim, p23Dim, spdDim, cycDim, movDim];
-  lsGrp = [sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, movGrp];
   lsExc = ["sex", "age", "p23", "spd", "cyc"];
   lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null];
   lsFunc = lsExc.map(function(it, i){
-    var txtFunc;
+    var txtFunc, p;
     txtFunc = lsTbl[i] !== null ? ggl[lsTbl[i]] : null;
-    return reBuildHorizonBar().group(eval(it + "Grp").all()).dimension(eval(it + "Dim")).txtTbl(txtFunc);
+    p = reBuildHorizonBar().group(eval(it + "Grp")).dimension(eval(it + "Dim")).txtTbl(txtFunc);
+    p();
+    return p;
   });
-  lsFunc.map(function(it){
-    return it();
-  });
-  key2ST = function(ls){
-    return ls.map(function(it){
-      var arr;
-      arr = it.key.split("_");
-      return {
-        source: arr[0],
-        target: arr[1],
-        value: it.value
-      };
-    });
-  };
-  buildSankey(
-  json2NodeLink(
-  key2ST(
-  movGrp.all())));
-  return d3.selectAll('#total').text(function(){
-    return crx.size();
-  });
+  sk = reBuildSankey().rawData(movGrp.all());
+  return sk();
 });
 function curry$(f, bound){
   var context,
