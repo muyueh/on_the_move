@@ -111,16 +111,6 @@ sexDim = null
 getY = (str)-> +(Str.take 4, str)
 getM = (str)-> +(Str.drop 4, str)
 
-dragMove = ->
-	
-	d3.select @
-		.attr {
-			"transform": "translate(" + it.x + "," + (it.y = Math.max 0, Math.min(ggl.h - it.dy, d3.event.y)) + ")"
-		}
-	ggl.sankey.relayout!
-	ggl.paths.attr { "d": ggl.path 1 }
-
-
 
 tsv2Json = (tsvData)-> 
 # ## input: [{地區: "北京", 南京: "10"}]
@@ -191,10 +181,12 @@ json2NodeLink = (jsonData)->
 	tbl = lists-to-obj lsnames, [0 to lsnames.length - 1]
 
 	rslt.links = jsonData.map (row)->
+
 		{
 			"source": tbl["s-" + row.source]
 			"target": tbl["t-" + row.target]
-			"value": row.value
+			"value": if row.value is 0 then 0.01 else row.value
+			##workaround; or there will be error
 		}
 
 	rslt
@@ -218,171 +210,6 @@ ggl.sankey = d3.sankey!
 
 ggl.path = ggl.sankey.reversibleLink!
 
-buildSankey = (data)->
-## data.nodes, data.links
-## magical number!!
-	# console.log data
-
-	ggl.sankey
-		.nodes data.nodes
-		.links data.links
-		.layout 1
-
-	svg = d3.select "body"
-		.select ".mainchart"
-		.append "svg"
-		.attr {
-			"width": ggl.w
-			"height": ggl.h
-		}
-		.append "g"
-		.attr {
-			"transform": "translate(" + ggl.margin.left + "," + ggl.margin.top + ")"
-		}
-
-	
-
-	linkEnter = svg.append "g"
-		.selectAll ".linkGrp"
-		.data data.links
-		.enter!
-		.append "g"
-		.attr {
-			"class": ->
-				# console.log it
-				"linkGrp"
-		}
-		.sort (a, b)-> b.dy - a.dy
-
-	highStyle = ->
-		it.style {
-			"opacity": 0.8
-		}
-
-	normStyle = ->
-		it.style {
-			"opacity": 0.4
-		}
-
-	hideStyle = ->
-		it.style {
-			"opacity": 0.1
-		}
-
-
-	ggl.paths := linkEnter.append "path"
-		.attr {
-			"fill": ggl.clrOrange			
-			"d": ggl.path 1
-			"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
-		}
-		.call normStyle
-		.on "mouseover", -> 
-			d3.select @ 
-				.call highStyle
-
-			d3.selectAll ".ps" + it.source.name
-				.text ~~(it.value / it.source.value * 100 ) + "%"
-
-			d3.selectAll ".pt" + it.target.name
-				.text ~~(it.value / it.target.value * 100 ) + "%"
-
-		.on "mouseout", -> 
-			d3.select @ 
-				.call normStyle
-
-			d3.selectAll ".ps" + it.source.name
-				.text ""
-
-			d3.selectAll ".pt" + it.target.name
-				.text ""
-
-
-	node = svg.append "g"
-		.selectAll ".node"
-		.data data.nodes
-		.enter!
-		.append "g"
-		.attr {
-			"class": "node"
-			"transform": -> "translate(" + it.x + "," + it.y + ")"
-		}
-		.call(
-			d3.behavior.drag!
-				.origin -> it
-				.on "dragstart", -> @.parentNode.appendChild @
-				.on "drag", dragMove
-			)
-		
-	
-	tOrS = ->
-		return if it.sourceLinks.length > it.targetLinks.length then "s" else "t"
-
-	tOrSJson = -> 
-		if it.sourceLinks.length < it.targetLinks.length
-			return {
-				i: "t"
-				j: "s"
-				k: "target"
-				l: "source"
-			}
-		else
-			return {
-				i: "s"
-				j: "t"
-				k: "source"
-				l: "target"
-			}
-
-	node.append "rect"
-		.attr {
-			"height": -> it.dy
-			"width": ggl.sankey.nodeWidth!
-			"fill": ggl.clrOrange
-		}
-		.on "mouseover", ->
-			d3.selectAll ".linkPath:not(" + (tOrS it)  + it.name + ")"
-				.call hideStyle
-			d3.selectAll "." + (tOrS it)  + it.name
-				.call highStyle
-
-			r = tOrSJson it
-			it[r.k + "Links"]map (lk)->
-				d3.selectAll ".p" + r.j + lk[r.l]name
-					.text -> 
-						s = ~~(lk.value / lk[r.l]value * 100 )
-						return if s is 0 then "" else s + "%"
-		.on "mouseout", ->
-			d3.selectAll ".linkPath"
-				.call normStyle
-
-			r = tOrSJson it
-
-			it[r.k + "Links"]map (lk)->
-				d3.selectAll ".p" + r.j + lk[r.l]name
-					.text ""
-
-
-	node.append "text"
-		.attr {
-			"x": -6
-			"y": -> it.dy / 2
-			"dy": "0.35em"
-			"text-anchor": "end"
-			"transform": null
-		}
-		.text -> ggl.nmtbl[it.name]
-
-	node.append "text"
-		.attr {
-			"x": 45
-			"y": -> it.dy / 2
-			"dy": "0.35em"
-			"text-anchor": "end"
-			"transform": null
-			"class": -> "p" + (tOrS it)  + it.name
-		}
-		# .text -> it.name
 
 
 
@@ -569,12 +396,6 @@ reBuildHorizonBar = ->
 	build
 
 
-
-# ggl.margin = {top: 20, left: 50, right: 100, bottom: 50}
-# ggl.w = 400 - ggl.margin.left - ggl.margin.right
-# ggl.h = 800 - ggl.margin.top - ggl.margin.bottom
-
-
 reBuildSankey = ->
 	loc = {}
 	loc.margin = {top: 20, left: 50, right: 100, bottom: 50}
@@ -585,9 +406,10 @@ reBuildSankey = ->
 	loc.rawData = null
 	loc.dimension = null
 	loc.path = null
-	loc.linkEnter = null
-	loc.node = null
+	loc.paths = null
+	loc.rect = null
 	loc.sankey = null
+	loc.texts = null
 
 
 	# loc.rectHeight = 15
@@ -627,19 +449,70 @@ reBuildSankey = ->
 				l: "target"
 			}
 
+	pathMouseover = ->
+		d3.select @ 
+			.call highStyle
+
+		d3.selectAll ".ps" + it.source.name
+			.text ~~(it.value / it.source.value * 100 ) + "%"
+
+		d3.selectAll ".pt" + it.target.name
+			.text ~~(it.value / it.target.value * 100 ) + "%"
+
+	pathMouseout = ->
+		d3.select @ 
+			.call normStyle
+
+		d3.selectAll ".ps" + it.source.name
+			.text ""
+
+		d3.selectAll ".pt" + it.target.name
+			.text ""
+
+	rectMouseover = ->
+		d3.selectAll ".linkPath:not(" + (tOrS it)  + it.name + ")"
+			.call hideStyle
+		d3.selectAll "." + (tOrS it)  + it.name
+			.call highStyle
+
+		r = tOrSJson it
+		it[r.k + "Links"]map (lk)->
+			d3.selectAll ".p" + r.j + lk[r.l]name
+				.text -> 
+					s = ~~(lk.value / lk[r.l]value * 100 )
+					return if s is 0 then "" else s + "%"
+
+	rectMouseout = ->
+		d3.selectAll ".linkPath"
+			.call normStyle
+
+		r = tOrSJson it
+
+		it[r.k + "Links"]map (lk)->
+			d3.selectAll ".p" + r.j + lk[r.l]name
+				.text ""
+
+	setTexts = ->
+		it
+			.attr {
+				"x": -6
+				"y": -> it.dy / 2
+				"dy": "0.35em"
+				"text-anchor": "end"
+				"transform": -> "translate(" + it.x + "," + it.y + ")"
+			}
+			.style {
+				"opacity": -> if it.dy < 10 then 0.2 else 1
+			}
+
+	removePostFix = ->
+		if it is undefined then return
+		it.replace("市", "").replace("省", "")
+
 	reInit = ->
-		console.log movGrp.all![0]
-
 		loc.group := (loc.rawData |> key2ST |> json2NodeLink )
-		# console.log loc.rawData[0]
 
-		# console.log loc.rawData.length
-		# console.log loc.group.links[0]
-		# .nodes[0].dy
-		loc.sankey := d3.sankey!
-			.size [loc.w - loc.margin.right, loc.h - loc.margin.bottom]
-			.nodeWidth 15
-			.nodePadding 10
+		loc.sankey
 			.nodes loc.group.nodes
 			.links loc.group.links
 			.layout 1
@@ -659,195 +532,78 @@ reBuildSankey = ->
 			.nodePadding 10
 
 		reInit!
-		
-		loc.linkEnter := loc.svg
-			.append "g"
-			.selectAll ".linkGrp"
+
+		loc.paths := loc.svg
+			.selectAll ".linkPath"
 			.data loc.group.links
 			.enter!
-			.append "g"
-			.attr {
-				"class": "linkGrp"
-			}
-			.sort (a, b)-> b.dy - a.dy
-
-		loc.paths := loc.linkEnter.append "path"
+			.append "path"
 			.attr {
 				"fill": ggl.clrOrange			
 				"d": loc.path 1
 				"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
 			}
 			.call normStyle
-			# .on "mouseover", -> 
-			# 	d3.select @ 
-			# 		.call highStyle
+			.on "mouseover", pathMouseover
+			.on "mouseout", pathMouseout
 
-			# 	d3.selectAll ".ps" + it.source.name
-			# 		.text ~~(it.value / it.source.value * 100 ) + "%"
-
-			# 	d3.selectAll ".pt" + it.target.name
-			# 		.text ~~(it.value / it.target.value * 100 ) + "%"
-
-			# .on "mouseout", -> 
-			# 	d3.select @ 
-			# 		.call normStyle
-
-			# 	d3.selectAll ".ps" + it.source.name
-			# 		.text ""
-
-			# 	d3.selectAll ".pt" + it.target.name
-			# 		.text ""
-
-		# loc.node := loc.svg
-		# 	.append "g"
-		# 	.selectAll ".node"
-		# 	.data loc.group.nodes
-		# 	.enter!
-		# 	.append "g"
-		# 	.attr {
-		# 		"class": "node"
-		# 		"transform": -> "translate(" + it.x + "," + it.y + ")"
-		# 	}
-			# .call(
-			# 	d3.behavior.drag!
-			# 		.origin -> it
-			# 		.on "dragstart", -> @.parentNode.appendChild @
-			# 		.on "drag", dragMove
-			# 	)
-
-		# loc.node.append "rect"
-		# 	.attr {
-		# 		"height": -> it.dy
-		# 		"width": loc.sankey.nodeWidth!
-		# 		"fill": ggl.clrOrange
-		# 		"class": "sankeyRect"
-		# 	}
-			# .on "mouseover", ->
-			# 	d3.selectAll ".linkPath:not(" + (tOrS it)  + it.name + ")"
-			# 		.call hideStyle
-			# 	d3.selectAll "." + (tOrS it)  + it.name
-			# 		.call highStyle
-
-			# 	r = tOrSJson it
-			# 	it[r.k + "Links"]map (lk)->
-			# 		d3.selectAll ".p" + r.j + lk[r.l]name
-			# 			.text -> 
-			# 				s = ~~(lk.value / lk[r.l]value * 100 )
-			# 				return if s is 0 then "" else s + "%"
-			# .on "mouseout", ->
-			# 	d3.selectAll ".linkPath"
-			# 		.call normStyle
-
-			# 	r = tOrSJson it
-
-			# 	it[r.k + "Links"]map (lk)->
-			# 		d3.selectAll ".p" + r.j + lk[r.l]name
-			# 			.text ""
+		loc.rect := loc.svg
+			.selectAll "sankeyRect"
+			.data loc.group.nodes
+			.enter!
+			.append "rect"
+			.attr {
+				"x": -> it.x
+				"y": -> it.y
+				"height": -> it.dy
+				"width": loc.sankey.nodeWidth!
+				"fill": ggl.clrOrange
+				"class": "sankeyRect"
+			}
+			.style {
+				"opacity": 0.7
+			}
+			.on "mouseover", rectMouseover
+			.on "mouseout", rectMouseout
 
 
-		# loc.node.append "text"
-		# 	.attr {
-		# 		"x": -6
-		# 		"y": -> it.dy / 2
-		# 		"dy": "0.35em"
-		# 		"text-anchor": "end"
-		# 		"transform": null
-		# 	}
-		# 	.text -> ggl.nmtbl[it.name]
-
-		# loc.node.append "text"
-		# 	.attr {
-		# 		"x": 45
-		# 		"y": -> it.dy / 2
-		# 		"dy": "0.35em"
-		# 		"text-anchor": "end"
-		# 		"transform": null
-		# 		"class": -> "p" + (tOrS it)  + it.name
-		# 	}
-		# 	# .text -> it.name
+		loc.texts := loc.svg
+			.append "g"
+			.selectAll ".node"
+			.data loc.group.nodes
+			.enter!
+			.append "text"
+			.call setTexts
+			.text -> (ggl.nmtbl[it.name] |> removePostFix )
 
 
 	build.render = ->
 		reInit!
 
-		console.log loc.group.links[0]
-
-		loc.linkEnter := loc.svg
-			# .append "g"
-			.selectAll ".linkGrp"
+		loc.svg
+			.selectAll "path"
 			.data loc.group.links
-
-		loc.paths
+			.transition!
+			.duration 1500
 			.attr {
-				"fill": ggl.clrOrange			
 				"d": loc.path 1
-				"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
 			}
-			# .call normStyle
 
+		loc.texts
+			.data loc.group.nodes
+			.transition!
+			.duration 1500
+			.call setTexts
 
+		loc.rect
+			.data loc.group.nodes
+			.transition!
+			.duration 1500
+			.attr {
+				"y": -> it.y
+				"height": -> it.dy
+			}
 
-
-
-		# loc.node |> console.log
-		# d3.selectAll "path"
-		# loc.node
-		# 	.selectAll "path"
-		# 	.attr {
-		# 		"fill": "black"
-		# 	}
-
-		# loc.node := loc.svg
-			# .append "g"
-		# d3
-		# 	.selectAll ".node"
-		# 	.data loc.group.nodes
-		# 	.enter!
-		# 	.append "g"
-		# 	.attr {
-		# 		"class": "node"
-		# 		"transform": -> "translate(" + it.x + "," + it.y + ")"
-		# 		"fill": "black"
-		# 	}
-
-
-		# loc.paths
-		# 	.attr {
-		# 		"d": loc.path 1
-		# 		"fill": "black"
-		# 	}
-
-		# loc.node
-		# 	.data loc.group.nodes
-
-		# loc.node
-		# 	# .select "g"
-		# 	# .data loc.group.nodes
-		# 	.selectAll "rect"
-		# 	.attr {
-		# 		"height": -> it.dy
-		# 		"fill": "black"
-		# 	}
-
-
-		# loc.linkEnter := loc.svg
-		# 	.selectAll ".linkGrp"
-		# 	.data loc.group.links
-		# 	# .enter!
-		# 	# .sort (a, b)-> b.dy - a.dy
-
-		# loc.paths := d3.selectAll "path"
-		# # loc.linkEnter
-		# 	# .selectAll "path"
-		# 	# .transition!
-
-		# 	# .append "path"
-		# 	.attr {
-		# 	# 	"fill": ggl.clrOrange			
-		# 		"d": loc.path 1
-		# 	# 	"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
-		# 	}
-		# 	# .call normStyle
 
 
 
@@ -857,8 +613,6 @@ reBuildSankey = ->
 
 	getSetter build, loc
 	build
-
-
 
 
 
@@ -896,111 +650,65 @@ buildHeatMap = (data)->
 
 
 
+buildCrossfilter = (json)->
+	## crossfilter
+	crx = crossfilter  json
+	allGrp = crx.groupAll!
+
+	sexDim := crx.dimension -> it.sex
+	ageDim = crx.dimension -> it.age_grp
+	p23Dim = crx.dimension -> it.p23_new
+	spdDim = crx.dimension -> it.sum_spend1000
+	cycDim = crx.dimension -> it.cycle
+	movDim := crx.dimension -> it.from_proid + "_" + it.po_id
+
+	sexGrp = sexDim.group(-> it).reduceSum( -> it.count )
+	ageGrp = ageDim.group(-> it).reduceSum( -> it.count )
+	p23Grp = p23Dim.group(-> it).reduceSum( -> it.count )
+	spdGrp = spdDim.group(-> Math.round(it / 100) * 100).reduceSum( -> it.count )
+	cycGrp = cycDim.group(-> it).reduceSum( -> it.count )
+	movGrp := movDim.group(-> it).reduceSum( -> it.count )
+
+
+	# lsExc = [ "sex" "age" "p23" "spd" "cyc"]
+	# lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null]
+
+	lsExc = [ "sex" "age" "p23"]
+	lsTbl = ["sextbl", "age_grptbl", "p23tbl"]
+
+	lsFunc := lsExc.map (it, i)->
+		txtFunc = (if lsTbl[i] is not null then ggl[lsTbl[i]] else null)
+		p = (reBuildHorizonBar!
+			.group (eval(it + "Grp"))
+			.dimension (eval(it + "Dim"))
+			.txtTbl txtFunc
+		)
+		p!
+		p
+
+
+		
+
+
+	sk := (movGrp.all! |> reBuildSankey!.rawData _)
+	sk!
+
+
+	# ### this is only length of aggregate group; not correct size
+	# d3.selectAll '#total'
+	# 	.text -> crx.size!
+
+
+
+
 
 err, tsvBody <- d3.tsv "../transform/group/transfer_t10.tsv"
 
-json = tsvBody |> tsv2Json 
-
-# json |> sumupST |> console.log
-
-# json |> sumupST |> json2NodeLink |> buildSankey
+# json = tsvBody |> tsv2Json
+tsvBody |> tsv2Json |> buildCrossfilter
 
 
 
-# json |> sumSex |> builGenderBar
-# json |> sumAge |> builGenderBar
-# json |> sumDs |> builGenderBar
-# json |> sumYM |> builGenderBar
-
-# json |> sumSex |> buildHorizonBar
-# json |> sumAge |> buildHorizonBar
-# json |> sumDs |> buildHorizonBar
-# json |> sumYM |> buildHeatMap
-
-
-
-
-## crossfilter
-
-crx = crossfilter  json
-allGrp = crx.groupAll!
-
-sexDim := crx.dimension -> it.sex
-ageDim = crx.dimension -> it.age_grp
-p23Dim = crx.dimension -> it.p23_new
-spdDim = crx.dimension -> it.sum_spend1000
-cycDim = crx.dimension -> it.cycle
-movDim := crx.dimension -> it.from_proid + "_" + it.po_id
-
-
-
-sexGrp = sexDim.group(-> it).reduceSum(->
-	it.count
-	)
-ageGrp = ageDim.group(-> it).reduceSum(->
-	it.count
-	)
-p23Grp = p23Dim.group(-> it).reduceSum(->
-	it.count
-	)
-spdGrp = spdDim.group(-> Math.round(it / 100) * 100).reduceSum(->
-	it.count
-	)
-cycGrp = cycDim.group(-> it).reduceSum(->
-	it.count
-	)
-movGrp := movDim.group(-> it).reduceSum(->
-	it.count
-	)
-
-
-
-
-
-lsExc = [ "sex" "age" "p23" "spd" "cyc"]
-lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null]
-
-lsFunc := lsExc.map (it, i)->
-	txtFunc = (if lsTbl[i] is not null then ggl[lsTbl[i]] else null)
-	p = (reBuildHorizonBar!
-		.group (eval(it + "Grp"))
-		.dimension (eval(it + "Dim"))
-		.txtTbl txtFunc
-	)
-	p!
-	p
-
-
-	
-
-
-# movGrp.all! |> key2ST |> json2NodeLink |> buildSankey
-
-sk := (movGrp.all! |> reBuildSankey!.rawData _)
-sk!
-
-# # insideCrox := ->
-# 	# console.log movGrp.all![0]
-
-
-# # console.log sexGrp.all!.top(Infinity).length
-
-# # console.log cycDim.filter("201401").top(Infinity).length
-# # console.log sexDim.filter("女").top(Infinity).length
-# # console.log sexDim.filter("男").top(Infinity).length
-# # console.log sexGrp.top(Infinity)
-# # console.log ageGrp.all!
-# # console.log p23Grp.all!
-
-
-
-
-
-
-
-# ### this is only length of aggregate group; not correct size
-# d3.selectAll '#total'
-# 	.text -> crx.size!
 
 
 

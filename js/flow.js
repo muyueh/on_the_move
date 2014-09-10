@@ -1,4 +1,4 @@
-var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, movGrp, movDim, sexDim, getY, getM, dragMove, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildSankey, buildMargin, buildSvg, insideCrox, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap;
+var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, movGrp, movDim, sexDim, getY, getM, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildMargin, buildSvg, insideCrox, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, buildCrossfilter;
 ref$ = require("prelude-ls"), join = ref$.join, Str = ref$.Str, fold1 = ref$.fold1, objToLists = ref$.objToLists, listsToObj = ref$.listsToObj, flatten = ref$.flatten, unique = ref$.unique, map = ref$.map, curry = ref$.curry;
 ggl = {};
 ggl.margin = {
@@ -109,15 +109,6 @@ getY = function(str){
 getM = function(str){
   return +Str.drop(4, str);
 };
-dragMove = function(it){
-  d3.select(this).attr({
-    "transform": "translate(" + it.x + "," + (it.y = Math.max(0, Math.min(ggl.h - it.dy, d3.event.y))) + ")"
-  });
-  ggl.sankey.relayout();
-  return ggl.paths.attr({
-    "d": ggl.path(1)
-  });
-};
 tsv2Json = function(tsvData){
   var jsonData;
   jsonData = [];
@@ -194,7 +185,9 @@ json2NodeLink = function(jsonData){
     return {
       "source": tbl["s-" + row.source],
       "target": tbl["t-" + row.target],
-      "value": row.value
+      "value": row.value === 0
+        ? 0.01
+        : row.value
     };
   });
   return rslt;
@@ -212,134 +205,6 @@ key2ST = function(ls){
 };
 ggl.sankey = d3.sankey().size([ggl.w - ggl.snky.right, ggl.h - ggl.snky.bottom]).nodeWidth(15).nodePadding(10);
 ggl.path = ggl.sankey.reversibleLink();
-buildSankey = function(data){
-  var svg, linkEnter, highStyle, normStyle, hideStyle, node, tOrS, tOrSJson;
-  ggl.sankey.nodes(data.nodes).links(data.links).layout(1);
-  svg = d3.select("body").select(".mainchart").append("svg").attr({
-    "width": ggl.w,
-    "height": ggl.h
-  }).append("g").attr({
-    "transform": "translate(" + ggl.margin.left + "," + ggl.margin.top + ")"
-  });
-  linkEnter = svg.append("g").selectAll(".linkGrp").data(data.links).enter().append("g").attr({
-    "class": function(){
-      return "linkGrp";
-    }
-  }).sort(function(a, b){
-    return b.dy - a.dy;
-  });
-  highStyle = function(it){
-    return it.style({
-      "opacity": 0.8
-    });
-  };
-  normStyle = function(it){
-    return it.style({
-      "opacity": 0.4
-    });
-  };
-  hideStyle = function(it){
-    return it.style({
-      "opacity": 0.1
-    });
-  };
-  ggl.paths = linkEnter.append("path").attr({
-    "fill": ggl.clrOrange,
-    "d": ggl.path(1),
-    "class": function(it){
-      return "t" + it.target.name + " s" + it.source.name + " linkPath";
-    }
-  }).call(normStyle).on("mouseover", function(it){
-    d3.select(this).call(highStyle);
-    d3.selectAll(".ps" + it.source.name).text(~~(it.value / it.source.value * 100) + "%");
-    return d3.selectAll(".pt" + it.target.name).text(~~(it.value / it.target.value * 100) + "%");
-  }).on("mouseout", function(it){
-    d3.select(this).call(normStyle);
-    d3.selectAll(".ps" + it.source.name).text("");
-    return d3.selectAll(".pt" + it.target.name).text("");
-  });
-  node = svg.append("g").selectAll(".node").data(data.nodes).enter().append("g").attr({
-    "class": "node",
-    "transform": function(it){
-      return "translate(" + it.x + "," + it.y + ")";
-    }
-  }).call(d3.behavior.drag().origin(function(it){
-    return it;
-  }).on("dragstart", function(){
-    return this.parentNode.appendChild(this);
-  }).on("drag", dragMove));
-  tOrS = function(it){
-    return it.sourceLinks.length > it.targetLinks.length ? "s" : "t";
-  };
-  tOrSJson = function(it){
-    if (it.sourceLinks.length < it.targetLinks.length) {
-      return {
-        i: "t",
-        j: "s",
-        k: "target",
-        l: "source"
-      };
-    } else {
-      return {
-        i: "s",
-        j: "t",
-        k: "source",
-        l: "target"
-      };
-    }
-  };
-  node.append("rect").attr({
-    "height": function(it){
-      return it.dy;
-    },
-    "width": ggl.sankey.nodeWidth(),
-    "fill": ggl.clrOrange
-  }).on("mouseover", function(it){
-    var r;
-    d3.selectAll(".linkPath:not(" + tOrS(it) + it.name + ")").call(hideStyle);
-    d3.selectAll("." + tOrS(it) + it.name).call(highStyle);
-    r = tOrSJson(it);
-    return it[r.k + "Links"].map(function(lk){
-      return d3.selectAll(".p" + r.j + lk[r.l].name).text(function(){
-        var s;
-        s = ~~(lk.value / lk[r.l].value * 100);
-        return s === 0
-          ? ""
-          : s + "%";
-      });
-    });
-  }).on("mouseout", function(it){
-    var r;
-    d3.selectAll(".linkPath").call(normStyle);
-    r = tOrSJson(it);
-    return it[r.k + "Links"].map(function(lk){
-      return d3.selectAll(".p" + r.j + lk[r.l].name).text("");
-    });
-  });
-  node.append("text").attr({
-    "x": -6,
-    "y": function(it){
-      return it.dy / 2;
-    },
-    "dy": "0.35em",
-    "text-anchor": "end",
-    "transform": null
-  }).text(function(it){
-    return ggl.nmtbl[it.name];
-  });
-  return node.append("text").attr({
-    "x": 45,
-    "y": function(it){
-      return it.dy / 2;
-    },
-    "dy": "0.35em",
-    "text-anchor": "end",
-    "transform": null,
-    "class": function(it){
-      return "p" + tOrS(it) + it.name;
-    }
-  });
-};
 buildMargin = function(){
   var rslt;
   rslt = {};
@@ -510,7 +375,7 @@ reBuildHorizonBar = function(){
   return build;
 };
 reBuildSankey = function(){
-  var loc, highStyle, normStyle, hideStyle, tOrS, tOrSJson, reInit, build;
+  var loc, highStyle, normStyle, hideStyle, tOrS, tOrSJson, pathMouseover, pathMouseout, rectMouseover, rectMouseout, setTexts, removePostFix, reInit, build;
   loc = {};
   loc.margin = {
     top: 20,
@@ -524,9 +389,10 @@ reBuildSankey = function(){
   loc.rawData = null;
   loc.dimension = null;
   loc.path = null;
-  loc.linkEnter = null;
-  loc.node = null;
+  loc.paths = null;
+  loc.rect = null;
   loc.sankey = null;
+  loc.texts = null;
   highStyle = function(it){
     return it.style({
       "opacity": 0.8
@@ -562,40 +428,117 @@ reBuildSankey = function(){
       };
     }
   };
+  pathMouseover = function(it){
+    d3.select(this).call(highStyle);
+    d3.selectAll(".ps" + it.source.name).text(~~(it.value / it.source.value * 100) + "%");
+    return d3.selectAll(".pt" + it.target.name).text(~~(it.value / it.target.value * 100) + "%");
+  };
+  pathMouseout = function(it){
+    d3.select(this).call(normStyle);
+    d3.selectAll(".ps" + it.source.name).text("");
+    return d3.selectAll(".pt" + it.target.name).text("");
+  };
+  rectMouseover = function(it){
+    var r;
+    d3.selectAll(".linkPath:not(" + tOrS(it) + it.name + ")").call(hideStyle);
+    d3.selectAll("." + tOrS(it) + it.name).call(highStyle);
+    r = tOrSJson(it);
+    return it[r.k + "Links"].map(function(lk){
+      return d3.selectAll(".p" + r.j + lk[r.l].name).text(function(){
+        var s;
+        s = ~~(lk.value / lk[r.l].value * 100);
+        return s === 0
+          ? ""
+          : s + "%";
+      });
+    });
+  };
+  rectMouseout = function(it){
+    var r;
+    d3.selectAll(".linkPath").call(normStyle);
+    r = tOrSJson(it);
+    return it[r.k + "Links"].map(function(lk){
+      return d3.selectAll(".p" + r.j + lk[r.l].name).text("");
+    });
+  };
+  setTexts = function(it){
+    return it.attr({
+      "x": -6,
+      "y": function(it){
+        return it.dy / 2;
+      },
+      "dy": "0.35em",
+      "text-anchor": "end",
+      "transform": function(it){
+        return "translate(" + it.x + "," + it.y + ")";
+      }
+    }).style({
+      "opacity": function(it){
+        if (it.dy < 10) {
+          return 0.2;
+        } else {
+          return 1;
+        }
+      }
+    });
+  };
+  removePostFix = function(it){
+    if (it === undefined) {
+      return;
+    }
+    return it.replace("市", "").replace("省", "");
+  };
   reInit = function(){
-    console.log(movGrp.all()[0]);
     loc.group = json2NodeLink(
     key2ST(
     loc.rawData));
-    loc.sankey = d3.sankey().size([loc.w - loc.margin.right, loc.h - loc.margin.bottom]).nodeWidth(15).nodePadding(10).nodes(loc.group.nodes).links(loc.group.links).layout(1);
+    loc.sankey.nodes(loc.group.nodes).links(loc.group.links).layout(1);
     return loc.path = loc.sankey.reversibleLink();
   };
   build = function(){
     loc.svg = reBuildSvg().h(loc.h).w(loc.w).margin(loc.margin).selector(".mainchart")();
     loc.sankey = d3.sankey().size([loc.w - loc.margin.right, loc.h - loc.margin.bottom]).nodeWidth(15).nodePadding(10);
     reInit();
-    loc.linkEnter = loc.svg.append("g").selectAll(".linkGrp").data(loc.group.links).enter().append("g").attr({
-      "class": "linkGrp"
-    }).sort(function(a, b){
-      return b.dy - a.dy;
-    });
-    return loc.paths = loc.linkEnter.append("path").attr({
+    loc.paths = loc.svg.selectAll(".linkPath").data(loc.group.links).enter().append("path").attr({
       "fill": ggl.clrOrange,
       "d": loc.path(1),
       "class": function(it){
         return "t" + it.target.name + " s" + it.source.name + " linkPath";
       }
-    }).call(normStyle);
+    }).call(normStyle).on("mouseover", pathMouseover).on("mouseout", pathMouseout);
+    loc.rect = loc.svg.selectAll("sankeyRect").data(loc.group.nodes).enter().append("rect").attr({
+      "x": function(it){
+        return it.x;
+      },
+      "y": function(it){
+        return it.y;
+      },
+      "height": function(it){
+        return it.dy;
+      },
+      "width": loc.sankey.nodeWidth(),
+      "fill": ggl.clrOrange,
+      "class": "sankeyRect"
+    }).style({
+      "opacity": 0.7
+    }).on("mouseover", rectMouseover).on("mouseout", rectMouseout);
+    return loc.texts = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setTexts).text(function(it){
+      return removePostFix(
+      ggl.nmtbl[it.name]);
+    });
   };
   build.render = function(){
     reInit();
-    console.log(loc.group.links[0]);
-    loc.linkEnter = loc.svg.selectAll(".linkGrp").data(loc.group.links);
-    return loc.paths.attr({
-      "fill": ggl.clrOrange,
-      "d": loc.path(1),
-      "class": function(it){
-        return "t" + it.target.name + " s" + it.source.name + " linkPath";
+    loc.svg.selectAll("path").data(loc.group.links).transition().duration(1500).attr({
+      "d": loc.path(1)
+    });
+    loc.texts.data(loc.group.nodes).transition().duration(1500).call(setTexts);
+    return loc.rect.data(loc.group.nodes).transition().duration(1500).attr({
+      "y": function(it){
+        return it.y;
+      },
+      "height": function(it){
+        return it.dy;
       }
     });
   };
@@ -639,10 +582,8 @@ buildHeatMap = function(data){
     }
   });
 };
-d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
-  var json, crx, allGrp, ageDim, p23Dim, spdDim, cycDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, lsExc, lsTbl;
-  json = tsv2Json(
-  tsvBody);
+buildCrossfilter = function(json){
+  var crx, allGrp, ageDim, p23Dim, spdDim, cycDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, lsExc, lsTbl;
   crx = crossfilter(json);
   allGrp = crx.groupAll();
   sexDim = crx.dimension(function(it){
@@ -693,8 +634,8 @@ d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
   }).reduceSum(function(it){
     return it.count;
   });
-  lsExc = ["sex", "age", "p23", "spd", "cyc"];
-  lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null];
+  lsExc = ["sex", "age", "p23"];
+  lsTbl = ["sextbl", "age_grptbl", "p23tbl"];
   lsFunc = lsExc.map(function(it, i){
     var txtFunc, p;
     txtFunc = lsTbl[i] !== null ? ggl[lsTbl[i]] : null;
@@ -704,6 +645,11 @@ d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
   });
   sk = reBuildSankey().rawData(movGrp.all());
   return sk();
+};
+d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
+  return buildCrossfilter(
+  tsv2Json(
+  tsvBody));
 });
 function curry$(f, bound){
   var context,
