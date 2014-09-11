@@ -240,9 +240,6 @@ insideCrox = (->)
 renderAll = ->
 	lsFunc.map -> it.render!
 	sk.render!
-	# insideCrox!
-
-
 
 
 getSetter = (build, loc)->
@@ -327,7 +324,9 @@ reBuildHorizonBar = ->
 
 	rctAttr = ->
 		it.attr {
-			"width": -> sclBar it.value
+			"width": -> 
+				w = sclBar it.value
+				if w < 0 then 0 else w
 			"height": loc.rectHeight
 			"x":(it, i)-> 0
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin)
@@ -338,11 +337,10 @@ reBuildHorizonBar = ->
 		}
 	txtAttr = ->
 		it.attr {
-			"x":(it, i)-> 100
+			"x":(it, i)-> loc.w - 80
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin) + 13
 		}
 		.text (it, i)-> 
-
 			if loc.txtTbl is null then it.key else loc.txtTbl[it.key]
 			
 
@@ -410,11 +408,10 @@ reBuildSankey = ->
 	loc.rect = null
 	loc.sankey = null
 	loc.texts = null
+	loc.numbers = null
+	loc.savedFilter = []
 
 
-	# loc.rectHeight = 15
-	# loc.savedFilter = []
-	# loc.txtTbl = null
 	highStyle = ->
 		it.style {
 			"opacity": 0.8
@@ -430,8 +427,7 @@ reBuildSankey = ->
 			"opacity": 0.1
 		}
 
-	tOrS = ->
-		return if it.sourceLinks.length > it.targetLinks.length then "s" else "t"
+	tOrS = -> if it.sourceLinks.length > it.targetLinks.length then "s" else "t"
 
 	tOrSJson = -> 
 		if it.sourceLinks.length < it.targetLinks.length
@@ -449,9 +445,49 @@ reBuildSankey = ->
 				l: "target"
 			}
 
+
+## do not support multiple filter here 
+
+	toggleFilter = (flt)->
+		# idx = loc.savedFilter.indexOf flt
+		# if idx > -1 then loc.savedFilter.splice(idx, 1) else loc.savedFilter.push flt
+
+		idx = loc.savedFilter.indexOf flt
+		if idx > -1
+			loc.savedFilter.splice(idx, 1)
+			else
+				loc.savedFilter[0] := flt
+
+
+		if loc.savedFilter.length > 0
+## interesting that this will needed, as function filter doesn't seem to clear all first.s
+			loc.dimension.filter null 
+			loc.dimension.filter(-> (loc.savedFilter.indexOf it) > -1 )	
+		else 
+			loc.dimension.filter null
+
+		if loc.savedFilter.length > 0
+			flt0 = (flt.split "_")[0]
+			flt1 = (flt.split "_")[1]
+			fltclass = ".s" + flt0 + "t" + flt1
+
+			loc.svg
+				.selectAll ".linkPath"+ (join "", (loc.savedFilter.map -> ":not(" + fltclass + ")" ))
+				.call hideStyle
+			loc.svg
+				.selectAll(join ",", (loc.savedFilter.map -> fltclass ))
+				.call highStyle
+
+
+		else 
+			loc.svg
+				.selectAll ".linkPath"
+				.call normStyle
+
+
 	pathMouseover = ->
-		d3.select @ 
-			.call highStyle
+		# d3.select @ 
+		# 	.call highStyle
 
 		d3.selectAll ".ps" + it.source.name
 			.text ~~(it.value / it.source.value * 100 ) + "%"
@@ -460,8 +496,8 @@ reBuildSankey = ->
 			.text ~~(it.value / it.target.value * 100 ) + "%"
 
 	pathMouseout = ->
-		d3.select @ 
-			.call normStyle
+		# d3.select @ 
+		# 	.call normStyle
 
 		d3.selectAll ".ps" + it.source.name
 			.text ""
@@ -505,6 +541,17 @@ reBuildSankey = ->
 				"opacity": -> if it.dy < 10 then 0.2 else 1
 			}
 
+	setNumber = ->
+		it
+			.attr {
+				"x": 45
+				"y": -> it.dy / 2
+				"dy": "0.35em"
+				"text-anchor": "end"
+				"transform": -> "translate(" + it.x + "," + it.y + ")"
+				"class": -> "p" + (tOrS it)  + it.name
+			}
+
 	removePostFix = ->
 		if it is undefined then return
 		it.replace("市", "").replace("省", "")
@@ -541,11 +588,15 @@ reBuildSankey = ->
 			.attr {
 				"fill": ggl.clrOrange			
 				"d": loc.path 1
-				"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath"
+				"class": -> "t" + it.target.name + " s" + it.source.name + " linkPath " + "s" + it.source.name + "t" + it.target.name
 			}
 			.call normStyle
 			.on "mouseover", pathMouseover
 			.on "mouseout", pathMouseout
+			.on "mousedown", ->
+				o = d3.select(@).data![0]
+				(o.source.name + "_" + o.target.name) |> toggleFilter
+				renderAll!
 
 		loc.rect := loc.svg
 			.selectAll "sankeyRect"
@@ -576,6 +627,14 @@ reBuildSankey = ->
 			.call setTexts
 			.text -> (ggl.nmtbl[it.name] |> removePostFix )
 
+		loc.numbers := loc.svg
+			.append "g"
+			.selectAll ".node"
+			.data loc.group.nodes
+			.enter!
+			.append "text"
+			.call setNumber
+
 
 	build.render = ->
 		reInit!
@@ -603,6 +662,12 @@ reBuildSankey = ->
 				"y": -> it.y
 				"height": -> it.dy
 			}
+
+		loc.numbers
+			.data loc.group.nodes
+			.transition!
+			.duration 1500
+			.call setNumber
 
 
 
@@ -690,7 +755,7 @@ buildCrossfilter = (json)->
 		
 
 
-	sk := (movGrp.all! |> reBuildSankey!.rawData _)
+	sk := reBuildSankey!.rawData movGrp.all! .dimension movDim
 	sk!
 
 

@@ -310,7 +310,13 @@ reBuildHorizonBar = function(){
   rctAttr = function(it){
     return it.attr({
       "width": function(it){
-        return sclBar(it.value);
+        var w;
+        w = sclBar(it.value);
+        if (w < 0) {
+          return 0;
+        } else {
+          return w;
+        }
       },
       "height": loc.rectHeight,
       "x": function(it, i){
@@ -331,7 +337,7 @@ reBuildHorizonBar = function(){
   txtAttr = function(it){
     return it.attr({
       "x": function(it, i){
-        return 100;
+        return loc.w - 80;
       },
       "y": function(it, i){
         return i * (loc.rectHeight + loc.rectMargin) + 13;
@@ -375,7 +381,7 @@ reBuildHorizonBar = function(){
   return build;
 };
 reBuildSankey = function(){
-  var loc, highStyle, normStyle, hideStyle, tOrS, tOrSJson, pathMouseover, pathMouseout, rectMouseover, rectMouseout, setTexts, removePostFix, reInit, build;
+  var loc, highStyle, normStyle, hideStyle, tOrS, tOrSJson, toggleFilter, pathMouseover, pathMouseout, rectMouseover, rectMouseout, setTexts, setNumber, removePostFix, reInit, build;
   loc = {};
   loc.margin = {
     top: 20,
@@ -393,6 +399,8 @@ reBuildSankey = function(){
   loc.rect = null;
   loc.sankey = null;
   loc.texts = null;
+  loc.numbers = null;
+  loc.savedFilter = [];
   highStyle = function(it){
     return it.style({
       "opacity": 0.8
@@ -409,7 +417,11 @@ reBuildSankey = function(){
     });
   };
   tOrS = function(it){
-    return it.sourceLinks.length > it.targetLinks.length ? "s" : "t";
+    if (it.sourceLinks.length > it.targetLinks.length) {
+      return "s";
+    } else {
+      return "t";
+    }
   };
   tOrSJson = function(it){
     if (it.sourceLinks.length < it.targetLinks.length) {
@@ -428,13 +440,42 @@ reBuildSankey = function(){
       };
     }
   };
+  toggleFilter = function(flt){
+    var idx, flt0, flt1, fltclass;
+    idx = loc.savedFilter.indexOf(flt);
+    if (idx > -1) {
+      loc.savedFilter.splice(idx, 1);
+    } else {
+      loc.savedFilter[0] = flt;
+    }
+    console.log(loc.savedFilter);
+    if (loc.savedFilter.length > 0) {
+      loc.dimension.filter(null);
+      loc.dimension.filter(function(it){
+        return loc.savedFilter.indexOf(it) > -1;
+      });
+    } else {
+      loc.dimension.filter(null);
+    }
+    if (loc.savedFilter.length > 0) {
+      flt0 = flt.split("_")[0];
+      flt1 = flt.split("_")[1];
+      fltclass = ".s" + flt0 + "t" + flt1;
+      loc.svg.selectAll(".linkPath" + join("", loc.savedFilter.map(function(){
+        return ":not(" + fltclass + ")";
+      }))).call(hideStyle);
+      return loc.svg.selectAll(join(",", loc.savedFilter.map(function(){
+        return fltclass;
+      }))).call(highStyle);
+    } else {
+      return loc.svg.selectAll(".linkPath").call(normStyle);
+    }
+  };
   pathMouseover = function(it){
-    d3.select(this).call(highStyle);
     d3.selectAll(".ps" + it.source.name).text(~~(it.value / it.source.value * 100) + "%");
     return d3.selectAll(".pt" + it.target.name).text(~~(it.value / it.target.value * 100) + "%");
   };
   pathMouseout = function(it){
-    d3.select(this).call(normStyle);
     d3.selectAll(".ps" + it.source.name).text("");
     return d3.selectAll(".pt" + it.target.name).text("");
   };
@@ -482,6 +523,22 @@ reBuildSankey = function(){
       }
     });
   };
+  setNumber = function(it){
+    return it.attr({
+      "x": 45,
+      "y": function(it){
+        return it.dy / 2;
+      },
+      "dy": "0.35em",
+      "text-anchor": "end",
+      "transform": function(it){
+        return "translate(" + it.x + "," + it.y + ")";
+      },
+      "class": function(it){
+        return "p" + tOrS(it) + it.name;
+      }
+    });
+  };
   removePostFix = function(it){
     if (it === undefined) {
       return;
@@ -503,9 +560,15 @@ reBuildSankey = function(){
       "fill": ggl.clrOrange,
       "d": loc.path(1),
       "class": function(it){
-        return "t" + it.target.name + " s" + it.source.name + " linkPath";
+        return "t" + it.target.name + " s" + it.source.name + " linkPath " + "s" + it.source.name + "t" + it.target.name;
       }
-    }).call(normStyle).on("mouseover", pathMouseover).on("mouseout", pathMouseout);
+    }).call(normStyle).on("mouseover", pathMouseover).on("mouseout", pathMouseout).on("mousedown", function(){
+      var o;
+      o = d3.select(this).data()[0];
+      toggleFilter(
+      o.source.name + "_" + o.target.name);
+      return renderAll();
+    });
     loc.rect = loc.svg.selectAll("sankeyRect").data(loc.group.nodes).enter().append("rect").attr({
       "x": function(it){
         return it.x;
@@ -522,10 +585,11 @@ reBuildSankey = function(){
     }).style({
       "opacity": 0.7
     }).on("mouseover", rectMouseover).on("mouseout", rectMouseout);
-    return loc.texts = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setTexts).text(function(it){
+    loc.texts = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setTexts).text(function(it){
       return removePostFix(
       ggl.nmtbl[it.name]);
     });
+    return loc.numbers = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setNumber);
   };
   build.render = function(){
     reInit();
@@ -533,7 +597,7 @@ reBuildSankey = function(){
       "d": loc.path(1)
     });
     loc.texts.data(loc.group.nodes).transition().duration(1500).call(setTexts);
-    return loc.rect.data(loc.group.nodes).transition().duration(1500).attr({
+    loc.rect.data(loc.group.nodes).transition().duration(1500).attr({
       "y": function(it){
         return it.y;
       },
@@ -541,6 +605,7 @@ reBuildSankey = function(){
         return it.dy;
       }
     });
+    return loc.numbers.data(loc.group.nodes).transition().duration(1500).call(setNumber);
   };
   build.setGroup = function(data){
     loc.group = json2NodeLink(
@@ -643,7 +708,7 @@ buildCrossfilter = function(json){
     p();
     return p;
   });
-  sk = reBuildSankey().rawData(movGrp.all());
+  sk = reBuildSankey().rawData(movGrp.all()).dimension(movDim);
   return sk();
 };
 d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
