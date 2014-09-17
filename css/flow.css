@@ -22,3 +22,25 @@ h4 {
   position: absolute;
   margin-top: 50px;
 }
+.popMap {
+  width: 290px;
+}
+.popTable {
+  width: 100%;
+}
+.white,
+.white:hover {
+  text-decoration: none;
+  color: #fff;
+}
+.ctnFooter {
+  position: fixed;
+  bottom: 0px;
+  background-color: #272727;
+  width: 100%;
+  height: 30px;
+}
+.ctnTxt {
+  margin-left: 150px;
+  margin-bottom: 15px;
+}

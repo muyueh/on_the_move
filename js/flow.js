@@ -1,4 +1,4 @@
-var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, mkInterval, movGrp, movDim, sexDim, getY, getM, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildMargin, buildSvg, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, buildCrossfilter;
+var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, removeImgTbl, mkInterval, movGrp, movDim, sexDim, getY, getM, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildMargin, buildSvg, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, buildCrossfilter;
 ref$ = require("prelude-ls"), join = ref$.join, Str = ref$.Str, fold1 = ref$.fold1, objToLists = ref$.objToLists, listsToObj = ref$.listsToObj, flatten = ref$.flatten, unique = ref$.unique, map = ref$.map, curry = ref$.curry;
 ggl = {};
 ggl.margin = {
@@ -100,6 +100,10 @@ ggl.age_grptbl = {
 ggl.sextbl = {
   "1": "男",
   "2": "女"
+};
+removeImgTbl = function(){
+  d3.selectAll(".tableContainer").selectAll("img").remove();
+  return d3.selectAll(".mapChart").selectAll("img").remove();
 };
 mkInterval = function(list){
   var int, unt;
@@ -302,6 +306,7 @@ reBuildHorizonBar = function(){
   txt = null;
   toggleFilter = function(flt){
     var idx;
+    removeImgTbl();
     idx = loc.savedFilter.indexOf(flt);
     if (idx > -1) {
       loc.savedFilter.splice(idx, 1);
@@ -439,7 +444,7 @@ reBuildSankey = function(){
   loc.margin = {
     top: 50,
     left: 80,
-    right: 10,
+    right: 20,
     bottom: 50
   };
   loc.w = 300 - loc.margin.left - loc.margin.right;
@@ -494,7 +499,8 @@ reBuildSankey = function(){
     }
   };
   toggleFilter = function(flt){
-    var idx, flt0, flt1, fltclass;
+    var idx, fspl, flt0, flt1, fltclass;
+    removeImgTbl();
     idx = loc.savedFilter.indexOf(flt);
     if (idx > -1) {
       loc.savedFilter.splice(idx, 1);
@@ -506,12 +512,24 @@ reBuildSankey = function(){
       loc.dimension.filter(function(it){
         return loc.savedFilter.indexOf(it) > -1;
       });
+      fspl = flt.split("_");
+      if (loc.savedFilter.length === 1 && fspl[0] === fspl[1]) {
+        d3.selectAll(".tableContainer").append("img").attr({
+          "src": "../flow_additional/table/" + fspl[0] + ".png",
+          "class": "popTable"
+        });
+        d3.selectAll(".mapChart").append("img").attr({
+          "src": "../flow_additional/map/" + fspl[0] + ".png",
+          "class": "popMap"
+        });
+      }
     } else {
       loc.dimension.filter(null);
     }
     if (loc.savedFilter.length > 0) {
-      flt0 = flt.split("_")[0];
-      flt1 = flt.split("_")[1];
+      fspl = flt.split("_");
+      flt0 = fspl[0];
+      flt1 = fspl[1];
       fltclass = ".s" + flt0 + "t" + flt1;
       loc.svg.selectAll(".linkPath" + join("", loc.savedFilter.map(function(){
         return ":not(" + fltclass + ")";
@@ -539,7 +557,7 @@ reBuildSankey = function(){
     return it[r.k + "Links"].map(function(lk){
       return d3.selectAll(".p" + r.j + lk[r.l].name).text(function(){
         var s;
-        s = ~~(lk.value / lk[r.l].value * 100);
+        s = ~~(lk.value / lk[r.k].value * 100);
         return s === 0
           ? ""
           : s + "%";
@@ -642,14 +660,14 @@ reBuildSankey = function(){
       ggl.nmtbl[it.name]);
     });
     loc.numbers = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setNumber);
-    loc.svg.append("text").text("归属").attr({
+    loc.svg.append("text").text("常駐地").attr({
       "x": -20,
       "y": -20
     }).style({
       "font-size": ggl.svgttlsize + "px",
       "fill": ggl.clrOrange
     });
-    return loc.svg.append("text").text("就诊").attr({
+    return loc.svg.append("text").text("就诊地").attr({
       "x": 165,
       "y": -20
     }).style({
@@ -779,6 +797,9 @@ buildCrossfilter = function(json){
     var txtFunc, p;
     txtFunc = lsTbl[i] !== null ? ggl[lsTbl[i]] : null;
     p = reBuildHorizonBar().group(eval(it + "Grp")).dimension(eval(it + "Dim")).selector("." + it + "Chart").txtTbl(txtFunc);
+    if (it === "spd") {
+      p = p.fixSvgHeight(550);
+    }
     if (it === "p23") {
       p = p.sortFlag(true).fixSvgHeight(410);
     }

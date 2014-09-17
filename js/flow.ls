@@ -108,6 +108,10 @@ ggl.sextbl = {
 	"2": "女"
 }
 
+removeImgTbl = ->
+	d3.selectAll ".tableContainer" .selectAll "img" .remove!
+	d3.selectAll ".mapChart" .selectAll "img" .remove!
+
 mkInterval = (list)->
 	int = list[1] - list[0]
 	unt = 1000
@@ -323,6 +327,8 @@ reBuildHorizonBar = ->
 
 ##TODO multi criteria select doesn't seem to be working correctly
 	toggleFilter = (flt)->
+		removeImgTbl!
+
 		idx = loc.savedFilter.indexOf flt
 		if idx > -1 then loc.savedFilter.splice(idx, 1) else loc.savedFilter.push flt
 
@@ -341,7 +347,7 @@ reBuildHorizonBar = ->
 				.style {
 					"opacity": 1
 				}	
-			
+
 		else 
 			loc.dimension.filter null
 
@@ -457,7 +463,7 @@ reBuildHorizonBar = ->
 
 reBuildSankey = ->
 	loc = {}
-	loc.margin = {top: 50, left: 80, right: 10, bottom: 50}
+	loc.margin = {top: 50, left: 80, right: 20, bottom: 50}
 	loc.w = 300 - loc.margin.left - loc.margin.right
 	loc.h = 900 - loc.margin.top - loc.margin.bottom
 
@@ -507,11 +513,15 @@ reBuildSankey = ->
 			}
 
 
+
 ## do not support multiple filter here 
 
 	toggleFilter = (flt)->
 		# idx = loc.savedFilter.indexOf flt
 		# if idx > -1 then loc.savedFilter.splice(idx, 1) else loc.savedFilter.push flt
+		removeImgTbl!
+		
+
 
 		idx = loc.savedFilter.indexOf flt
 		if idx > -1
@@ -524,12 +534,36 @@ reBuildSankey = ->
 ## interesting that this will needed, as function filter doesn't seem to clear all first.s
 			loc.dimension.filter null 
 			loc.dimension.filter(-> (loc.savedFilter.indexOf it) > -1 )	
+
+
+			## this is for map
+			fspl = flt.split "_"
+			if (loc.savedFilter.length is 1) and (fspl[0] is fspl[1])
+				# window.open("../flow_additional/table/" + fspl[0] + ".png", '_blank')
+
+
+				d3.selectAll ".tableContainer"
+					.append "img"
+					.attr {
+						"src": "../flow_additional/table/" + fspl[0] + ".png"
+						"class": "popTable"
+					}
+
+				d3.selectAll ".mapChart"
+					.append "img"
+					.attr {
+						"src": "../flow_additional/map/" + fspl[0] + ".png"
+						"class": "popMap"
+					}
+
+
 		else 
 			loc.dimension.filter null
 
 		if loc.savedFilter.length > 0
-			flt0 = (flt.split "_")[0]
-			flt1 = (flt.split "_")[1]
+			fspl = flt.split "_"
+			flt0 = fspl[0]
+			flt1 = fspl[1]
 			fltclass = ".s" + flt0 + "t" + flt1
 
 			loc.svg
@@ -546,12 +580,15 @@ reBuildSankey = ->
 				.call normStyle
 
 
+
+
 	pathMouseover = ->
 		# d3.select @ 
 		# 	.call highStyle
 
 		d3.selectAll ".ps" + it.source.name
 			.text ~~(it.value / it.source.value * 100 ) + "%"
+
 
 		d3.selectAll ".pt" + it.target.name
 			.text ~~(it.value / it.target.value * 100 ) + "%"
@@ -576,7 +613,8 @@ reBuildSankey = ->
 		it[r.k + "Links"]map (lk)->
 			d3.selectAll ".p" + r.j + lk[r.l]name
 				.text -> 
-					s = ~~(lk.value / lk[r.l]value * 100 )
+					s = ~~(lk.value / lk[r.k]value * 100 )
+					# s = ~~(lk.value / lk[r.l]value * 100 )
 					return if s is 0 then "" else s + "%"
 
 	rectMouseout = ->
@@ -698,7 +736,7 @@ reBuildSankey = ->
 
 		loc.svg
 			.append "text"
-			.text "归属"
+			.text "常駐地"
 			.attr {
 				"x": -20
 				"y": -20
@@ -710,7 +748,7 @@ reBuildSankey = ->
 
 		loc.svg
 			.append "text"
-			.text "就诊"
+			.text "就诊地"
 			.attr {
 				"x": 165
 				"y": -20
@@ -837,12 +875,16 @@ buildCrossfilter = (json)->
 			.txtTbl txtFunc
 		)
 
-		# if it is "spd" then p = p.selector ".numberchart"
+		if it is "spd"
+			p = p
+				.fixSvgHeight 550
+
 		if it is "p23"
 			p = p
 				.sortFlag true
 				.fixSvgHeight 410
 	
+
 		p!
 		p
 
