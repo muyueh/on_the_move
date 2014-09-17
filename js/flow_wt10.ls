@@ -6,7 +6,7 @@ ggl = {}
 # ggl.headName = "地区"
 
 ggl.margin = {top: 20, left: 50, right: 100, bottom: 50}
-ggl.w = 300 - ggl.margin.left - ggl.margin.right
+ggl.w = 400 - ggl.margin.left - ggl.margin.right
 ggl.h = 800 - ggl.margin.top - ggl.margin.bottom
 
 ggl.snky = {right: 100, bottom: 50}
@@ -54,80 +54,42 @@ ggl.nmtbl = {
 	"650":	"新疆兵团"
 }
 
-# ggl.p23tbl = {
-# 	"01":	"预防保健科"
-# 	"02":	"全科医疗科"
-# 	"03":	"内科"
-# 	"04":	"外科"
-# 	"05":	"妇产科"
-# 	"06":	"妇女保健科"
-# 	"07":	"儿科"
-# 	"08":	"小儿外科"
-# 	"09":	"儿童保健科"
-# 	"10":	"眼科"
-# 	"11":	"耳鼻咽喉科"
-# 	"12":	"口腔科"
-# 	"13":	"皮肤科"
-# 	"14":	"医疗美容科"
-# 	"15":	"精神科"
-# 	"16":	"传染科"
-# 	"17":	"结核病科"
-# 	"18":	"地方病科"
-# 	"19":	"肿瘤科"
-# 	"20":	"急诊医学科"
-# 	"21":	"康复医学科"
-# 	"22":	"运动医学科"
-# 	"23":	"职业病科"
-# 	"24":	"临终关怀科"
-# 	"25":	"特种医学与军事医学科"
-# 	"26":	"麻醉科"
-# 	"27":	"疼痛科"
-# 	"28":	"重症医学科"
-# 	"30":	"医学检验科"
-# 	"31":	"病理科"
-# 	"32":	"医学影像科"
-# 	"50":	"中医科"
-# 	"51":	"民族医学科"
-# 	"52":	"中西医结合科"
-# 	"69":	"其他业务科室"
-# }
-
 ggl.p23tbl = {
-	"01":	"预保"
-	"02":	"全科"
+	"01":	"预防保健科"
+	"02":	"全科医疗科"
 	"03":	"内科"
 	"04":	"外科"
-	"05":	"妇产"
-	"06":	"妇保"
+	"05":	"妇产科"
+	"06":	"妇女保健科"
 	"07":	"儿科"
-	"08":	"儿外"
-	"09":	"儿保"
+	"08":	"小儿外科"
+	"09":	"儿童保健科"
 	"10":	"眼科"
-	"11":	"耳鼻"
-	"12":	"口腔"
-	"13":	"皮肤"
-	"14":	"医美"
-	"15":	"精神"
-	"16":	"传染"
-	"17":	"结核"
-	"18":	"地方"
-	"19":	"肿瘤"
-	"20":	"急诊"
-	"21":	"康复"
-	"22":	"运动"
-	"23":	"职业"
-	"24":	"临终"
-	"25":	"特军"
-	"26":	"麻醉"
-	"27":	"疼痛"
-	"28":	"重症"
-	"30":	"医学"
-	"31":	"病理"
-	"32":	"影像"
-	"50":	"中医"
-	"51":	"民医"
-	"52":	"中西"
-	"69":	"其他"
+	"11":	"耳鼻咽喉科"
+	"12":	"口腔科"
+	"13":	"皮肤科"
+	"14":	"医疗美容科"
+	"15":	"精神科"
+	"16":	"传染科"
+	"17":	"结核病科"
+	"18":	"地方病科"
+	"19":	"肿瘤科"
+	"20":	"急诊医学科"
+	"21":	"康复医学科"
+	"22":	"运动医学科"
+	"23":	"职业病科"
+	"24":	"临终关怀科"
+	"25":	"特种医学与军事医学科"
+	"26":	"麻醉科"
+	"27":	"疼痛科"
+	"28":	"重症医学科"
+	"30":	"医学检验科"
+	"31":	"病理科"
+	"32":	"医学影像科"
+	"50":	"中医科"
+	"51":	"民族医学科"
+	"52":	"中西医结合科"
+	"69":	"其他业务科室"
 }
 
 ggl.age_grptbl = {
@@ -141,26 +103,6 @@ ggl.sextbl = {
 	"1": "男"
 	"2": "女"
 }
-
-mkInterval = (list)->
-	int = list[1] - list[0]
-	unt = 1000
-	lists-to-obj list, list.map (it, i)-> 
-		if i is 0
-			it + "-" + (it + Math.floor(int / 2) ) * unt
-		else
-			(it - Math.floor(int / 2)) * unt + "-" + (it + Math.floor(int / 2) ) * unt
-
-
-
-ggl.spdtbl = [0 to 500 by 5] |> mkInterval 
-	
-
-ggl.smDifftbl = {
-	true: "本地"
-	false: "异地"
-}
-
 
 movGrp = null
 movDim = null
@@ -182,8 +124,6 @@ tsv2Json = (tsvData)->
 		row.source= row.from_proid
 		row.target = row.po_id
 		row.value = row.count
-
-		# if row.value < 0 or row.sum_spend1000 < 0 or row.count < 0 then console.log it
 
 		# row.p23_new = ggl.p23tbl[row.p23_new]
 		# row.age_grp = ggl.age_grptbl[row.age_grp]
@@ -276,8 +216,8 @@ ggl.path = ggl.sankey.reversibleLink!
 buildMargin = ->
 	rslt = {}
 	# rslt.margin = {top: 30, left: 30, bottom: 30, right: 30}
-	rslt.margin = {top: 10, left: 10, bottom: 10, right: 100}
-	rslt.w = 300 - rslt.margin.left - rslt.margin.right
+	rslt.margin = {top: 10, left: 10, bottom: 10, right: 10}
+	rslt.w = 400 - rslt.margin.left - rslt.margin.right
 	rslt.h = 200 - rslt.margin.top - rslt.margin.bottom
 
 	rslt
@@ -321,8 +261,8 @@ reBuildSvg = ->
 			.select loc.selector
 			.append "svg"
 			.attr {
-				"width": loc.w + loc.margin.left + loc.margin.right
-				"height": loc.h + loc.margin.top + loc.margin.bottom
+				"width": loc.w
+				"height": loc.h
 			}
 			.append "g"
 			.attr {
@@ -339,19 +279,17 @@ reBuildHorizonBar = ->
 	loc = buildMargin!
 	loc.group = null
 	loc.dimension = null
-	loc.rectHeight = 10
-	loc.rectMargin = 10
+	loc.rectHeight = 15
+	loc.rectMargin = 2
 	loc.savedFilter = []
 	loc.txtTbl = null
 	loc.selector = ".sidechart"
-	loc.sortFlag = false
 
 
 	dt = null
 	sclBar = null
 	ttl = null
 	rct = null
-	txt = null
 
 
 
@@ -382,12 +320,14 @@ reBuildHorizonBar = ->
 			dt
 				.selectAll "rect"
 				.style {
-					"opacity": 0.7
+					"opacity": 1
 				}	
 
 	rctAttr = ->
 		it.attr {
-			"width": -> (sclBar it.value)
+			"width": -> 
+				w = sclBar it.value
+				if w < 0 then 0 else w
 			"height": loc.rectHeight
 			"x":(it, i)-> 0
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin)
@@ -398,13 +338,8 @@ reBuildHorizonBar = ->
 		}
 	txtAttr = ->
 		it.attr {
-			"x":(it, i)-> loc.w + 10
+			"x":(it, i)-> loc.w - 80
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin) + 13
-		}
-		.style {
-			opacity: (it, i)-> 
-				w = (sclBar it.value)
-				if w < 10 then (w / 10) + 0.1 else 1
 		}
 		.text (it, i)-> 
 			if loc.txtTbl is null then it.key else loc.txtTbl[it.key]
@@ -414,25 +349,16 @@ reBuildHorizonBar = ->
 	build = ->
 
 		##auto adjust chart length
-		loc.svg := (reBuildSvg!.h((loc.group.all!.length - 1)* (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector loc.selector)!
+		loc.svg := (reBuildSvg!.h(loc.group.all!.length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector loc.selector)!
 
 		ttl := (loc.group.all!.map -> it.value) |> fold1 (+), _
 		sclBar := d3.scale.linear!
 			.domain [0, ttl]
 			.range [0, loc.w]
 
-		if loc.sortFlag
-			dgrp = loc.svg
-				.selectAll ".rect"
-				.data (loc.group.top Infinity) , -> it.key
-
-		else
-			dgrp = loc.svg
-				.selectAll ".rect"
-				.data (loc.group.all!) , -> it.key
-
-
-		dt := dgrp
+		dt := loc.svg
+			.selectAll ".rect"
+			.data loc.group.all!
 			.enter!
 			.append "g"
 			.attr {
@@ -441,45 +367,29 @@ reBuildHorizonBar = ->
 
 		rct := dt.append "rect"
 			.call rctAttr
-			.style {
-				opacity: 0.7
-			}
 			.on "mousedown", ->
 				d3.select(@).data![0].key |> toggleFilter
 				renderAll!
 
-		txt := dt.append "text"
+		dt.append "text"
 			.call txtAttr
 			
 
 	build.render = ->
+		# console.log (movGrp.top 1)[0]
+		# console.log loc.group[0]
 		ttl := (loc.group.all!.map -> it.value) |> fold1 (+), _
 		sclBar := d3.scale.linear!
 			.domain [0, ttl]
 			.range [0, loc.w]
 
+		rct
+			.transition!
+			.call rctAttr
 
-		if loc.sortFlag
-			rct
-				.sort (a, b)-> b.value - a.value 
-				.transition!
-				.duration 1500
-				.call rctAttr
-
-			txt
-				.sort (a, b)-> b.value - a.value 
-				.transition!
-				.duration 1500
-				.call txtAttr
-
-		else
-			rct
-				.transition!
-				.call rctAttr
-
-			txt
-				.transition!
-				.call txtAttr
+		# dt.append "text"
+		# 	.transition!
+		# 	.call txtAttr
 
 	getSetter build, loc
 	build
@@ -487,9 +397,9 @@ reBuildHorizonBar = ->
 
 reBuildSankey = ->
 	loc = {}
-	loc.margin = {top: 20, left: 50, right: 80, bottom: 50}
+	loc.margin = {top: 20, left: 50, right: 100, bottom: 50}
 	loc.w = 400 - loc.margin.left - loc.margin.right
-	loc.h = 900 - loc.margin.top - loc.margin.bottom
+	loc.h = 800 - loc.margin.top - loc.margin.bottom
 
 	loc.group = null
 	loc.rawData = null
@@ -817,22 +727,21 @@ buildCrossfilter = (json)->
 	spdDim = crx.dimension -> it.sum_spend1000
 	cycDim = crx.dimension -> it.cycle
 	movDim := crx.dimension -> it.from_proid + "_" + it.po_id
-	smDiffDim = crx.dimension -> (it.from_proid is it.po_id)
 
 	sexGrp = sexDim.group(-> it).reduceSum( -> it.count )
 	ageGrp = ageDim.group(-> it).reduceSum( -> it.count )
 	p23Grp = p23Dim.group(-> it).reduceSum( -> it.count )
-	spdGrp = spdDim.group(-> Math.round(it / 5) * 5).reduceSum( -> it.count )
+	# spdGrp = spdDim.group(-> Math.round(it / 100) * 100).reduceSum( -> it.count )
+	spdGrp = spdDim.group(-> Math.round(it / 1000) * 1000).reduceSum( -> it.count )
 	cycGrp = cycDim.group(-> it).reduceSum( -> it.count )
 	movGrp := movDim.group(-> it).reduceSum( -> it.count )
-	smDiffGrp = smDiffDim.group(-> it).reduceSum( -> it.count )
 
 
 	# lsExc = [ "sex" "age" "p23" "spd" "cyc"]
 	# lsTbl = ["sextbl", "age_grptbl", "p23tbl", null, null]
 
-	lsExc = ["smDiff" "sex" "age" "p23" "spd" ]
-	lsTbl = ["smDifftbl" "sextbl" "age_grptbl" "p23tbl" null ]
+	lsExc = [ "sex" "age" "p23" "spd"]
+	lsTbl = ["sextbl" "age_grptbl" "p23tbl" null]
 
 	lsFunc := lsExc.map (it, i)->
 		txtFunc = (if lsTbl[i] is not null then ggl[lsTbl[i]] else null)
@@ -843,10 +752,11 @@ buildCrossfilter = (json)->
 		)
 
 		if it is "spd" then p = p.selector ".numberchart"
-		if it is "p23" then p = p.sortFlag true
-	
+		
+
 		p!
 		p
+
 
 		
 
@@ -863,7 +773,7 @@ buildCrossfilter = (json)->
 
 
 
-err, tsvBody <- d3.tsv "../transform_on_the_move/group/transfer_t30.tsv"
+err, tsvBody <- d3.tsv "../transform/group/transfer_t10.tsv"
 
 # json = tsvBody |> tsv2Json
 tsvBody |> tsv2Json |> buildCrossfilter

@@ -1,4 +1,16 @@
+body {
+  background-color: #272727;
+}
+svg text {
+  fill: #fff;
+}
+.numberchart {
+  margin-left: 100px;
+}
 div {
   float: left;
+  width: 300px;
+}
+.mainchart {
   width: 300px;
 }

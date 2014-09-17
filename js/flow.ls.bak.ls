@@ -6,7 +6,7 @@ ggl = {}
 # ggl.headName = "地区"
 
 ggl.margin = {top: 20, left: 50, right: 100, bottom: 50}
-ggl.w = 400 - ggl.margin.left - ggl.margin.right
+ggl.w = 300 - ggl.margin.left - ggl.margin.right
 ggl.h = 800 - ggl.margin.top - ggl.margin.bottom
 
 ggl.snky = {right: 100, bottom: 50}

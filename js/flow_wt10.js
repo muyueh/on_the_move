@@ -1,4 +1,4 @@
-var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, mkInterval, movGrp, movDim, sexDim, getY, getM, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildMargin, buildSvg, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, buildCrossfilter;
+var ref$, join, Str, fold1, objToLists, listsToObj, flatten, unique, map, curry, ggl, lsExc, lsFunc, sk, movGrp, movDim, sexDim, getY, getM, tsv2Json, sumupST, sumupV, sumSex, sumAge, sumYM, sumDs, json2NodeLink, key2ST, buildMargin, buildSvg, renderAll, getSetter, reBuildSvg, reBuildHorizonBar, reBuildSankey, buildHeatMap, buildCrossfilter;
 ref$ = require("prelude-ls"), join = ref$.join, Str = ref$.Str, fold1 = ref$.fold1, objToLists = ref$.objToLists, listsToObj = ref$.listsToObj, flatten = ref$.flatten, unique = ref$.unique, map = ref$.map, curry = ref$.curry;
 ggl = {};
 ggl.margin = {
@@ -7,7 +7,7 @@ ggl.margin = {
   right: 100,
   bottom: 50
 };
-ggl.w = 300 - ggl.margin.left - ggl.margin.right;
+ggl.w = 400 - ggl.margin.left - ggl.margin.right;
 ggl.h = 800 - ggl.margin.top - ggl.margin.bottom;
 ggl.snky = {
   right: 100,
@@ -54,41 +54,41 @@ ggl.nmtbl = {
   "650": "新疆兵团"
 };
 ggl.p23tbl = {
-  "01": "预保",
-  "02": "全科",
+  "01": "预防保健科",
+  "02": "全科医疗科",
   "03": "内科",
   "04": "外科",
-  "05": "妇产",
-  "06": "妇保",
+  "05": "妇产科",
+  "06": "妇女保健科",
   "07": "儿科",
-  "08": "儿外",
-  "09": "儿保",
+  "08": "小儿外科",
+  "09": "儿童保健科",
   "10": "眼科",
-  "11": "耳鼻",
-  "12": "口腔",
-  "13": "皮肤",
-  "14": "医美",
-  "15": "精神",
-  "16": "传染",
-  "17": "结核",
-  "18": "地方",
-  "19": "肿瘤",
-  "20": "急诊",
-  "21": "康复",
-  "22": "运动",
-  "23": "职业",
-  "24": "临终",
-  "25": "特军",
-  "26": "麻醉",
-  "27": "疼痛",
-  "28": "重症",
-  "30": "医学",
-  "31": "病理",
-  "32": "影像",
-  "50": "中医",
-  "51": "民医",
-  "52": "中西",
-  "69": "其他"
+  "11": "耳鼻咽喉科",
+  "12": "口腔科",
+  "13": "皮肤科",
+  "14": "医疗美容科",
+  "15": "精神科",
+  "16": "传染科",
+  "17": "结核病科",
+  "18": "地方病科",
+  "19": "肿瘤科",
+  "20": "急诊医学科",
+  "21": "康复医学科",
+  "22": "运动医学科",
+  "23": "职业病科",
+  "24": "临终关怀科",
+  "25": "特种医学与军事医学科",
+  "26": "麻醉科",
+  "27": "疼痛科",
+  "28": "重症医学科",
+  "30": "医学检验科",
+  "31": "病理科",
+  "32": "医学影像科",
+  "50": "中医科",
+  "51": "民族医学科",
+  "52": "中西医结合科",
+  "69": "其他业务科室"
 };
 ggl.age_grptbl = {
   "0": "17 及以下",
@@ -99,24 +99,6 @@ ggl.age_grptbl = {
 ggl.sextbl = {
   "1": "男",
   "2": "女"
-};
-mkInterval = function(list){
-  var int, unt;
-  int = list[1] - list[0];
-  unt = 1000;
-  return listsToObj(list, list.map(function(it, i){
-    if (i === 0) {
-      return it + "-" + (it + Math.floor(int / 2)) * unt;
-    } else {
-      return (it - Math.floor(int / 2)) * unt + "-" + (it + Math.floor(int / 2)) * unt;
-    }
-  }));
-};
-ggl.spdtbl = mkInterval(
-[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145, 150, 155, 160, 165, 170, 175, 180, 185, 190, 195, 200, 205, 210, 215, 220, 225, 230, 235, 240, 245, 250, 255, 260, 265, 270, 275, 280, 285, 290, 295, 300, 305, 310, 315, 320, 325, 330, 335, 340, 345, 350, 355, 360, 365, 370, 375, 380, 385, 390, 395, 400, 405, 410, 415, 420, 425, 430, 435, 440, 445, 450, 455, 460, 465, 470, 475, 480, 485, 490, 495, 500]);
-ggl.smDifftbl = {
-  'true': "本地",
-  'false': "异地"
 };
 movGrp = null;
 movDim = null;
@@ -230,9 +212,9 @@ buildMargin = function(){
     top: 10,
     left: 10,
     bottom: 10,
-    right: 100
+    right: 10
   };
-  rslt.w = 300 - rslt.margin.left - rslt.margin.right;
+  rslt.w = 400 - rslt.margin.left - rslt.margin.right;
   rslt.h = 200 - rslt.margin.top - rslt.margin.bottom;
   return rslt;
 };
@@ -273,8 +255,8 @@ reBuildSvg = function(){
   loc.selector = ".sidechart";
   build = function(){
     return d3.select("body").select(loc.selector).append("svg").attr({
-      "width": loc.w + loc.margin.left + loc.margin.right,
-      "height": loc.h + loc.margin.top + loc.margin.bottom
+      "width": loc.w,
+      "height": loc.h
     }).append("g").attr({
       "transform": "translate(" + loc.margin.left + "," + loc.margin.top + ")"
     });
@@ -283,21 +265,19 @@ reBuildSvg = function(){
   return build;
 };
 reBuildHorizonBar = function(){
-  var loc, dt, sclBar, ttl, rct, txt, toggleFilter, rctAttr, txtAttr, build;
+  var loc, dt, sclBar, ttl, rct, toggleFilter, rctAttr, txtAttr, build;
   loc = buildMargin();
   loc.group = null;
   loc.dimension = null;
-  loc.rectHeight = 10;
-  loc.rectMargin = 10;
+  loc.rectHeight = 15;
+  loc.rectMargin = 2;
   loc.savedFilter = [];
   loc.txtTbl = null;
   loc.selector = ".sidechart";
-  loc.sortFlag = false;
   dt = null;
   sclBar = null;
   ttl = null;
   rct = null;
-  txt = null;
   toggleFilter = function(flt){
     var idx;
     idx = loc.savedFilter.indexOf(flt);
@@ -323,14 +303,20 @@ reBuildHorizonBar = function(){
     } else {
       loc.dimension.filter(null);
       return dt.selectAll("rect").style({
-        "opacity": 0.7
+        "opacity": 1
       });
     }
   };
   rctAttr = function(it){
     return it.attr({
       "width": function(it){
-        return sclBar(it.value);
+        var w;
+        w = sclBar(it.value);
+        if (w < 0) {
+          return 0;
+        } else {
+          return w;
+        }
       },
       "height": loc.rectHeight,
       "x": function(it, i){
@@ -351,20 +337,10 @@ reBuildHorizonBar = function(){
   txtAttr = function(it){
     return it.attr({
       "x": function(it, i){
-        return loc.w + 10;
+        return loc.w - 80;
       },
       "y": function(it, i){
         return i * (loc.rectHeight + loc.rectMargin) + 13;
-      }
-    }).style({
-      opacity: function(it, i){
-        var w;
-        w = sclBar(it.value);
-        if (w < 10) {
-          return w / 10 + 0.1;
-        } else {
-          return 1;
-        }
       }
     }).text(function(it, i){
       if (loc.txtTbl === null) {
@@ -375,34 +351,22 @@ reBuildHorizonBar = function(){
     });
   };
   build = function(){
-    var dgrp;
-    loc.svg = reBuildSvg().h((loc.group.all().length - 1) * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector(loc.selector)();
+    loc.svg = reBuildSvg().h(loc.group.all().length * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector(loc.selector)();
     ttl = fold1(curry$(function(x$, y$){
       return x$ + y$;
     }), loc.group.all().map(function(it){
       return it.value;
     }));
     sclBar = d3.scale.linear().domain([0, ttl]).range([0, loc.w]);
-    if (loc.sortFlag) {
-      dgrp = loc.svg.selectAll(".rect").data(loc.group.top(Infinity), function(it){
-        return it.key;
-      });
-    } else {
-      dgrp = loc.svg.selectAll(".rect").data(loc.group.all(), function(it){
-        return it.key;
-      });
-    }
-    dt = dgrp.enter().append("g").attr({
+    dt = loc.svg.selectAll(".rect").data(loc.group.all()).enter().append("g").attr({
       "class": "horBar"
     });
-    rct = dt.append("rect").call(rctAttr).style({
-      opacity: 0.7
-    }).on("mousedown", function(){
+    rct = dt.append("rect").call(rctAttr).on("mousedown", function(){
       toggleFilter(
       d3.select(this).data()[0].key);
       return renderAll();
     });
-    return txt = dt.append("text").call(txtAttr);
+    return dt.append("text").call(txtAttr);
   };
   build.render = function(){
     ttl = fold1(curry$(function(x$, y$){
@@ -411,17 +375,7 @@ reBuildHorizonBar = function(){
       return it.value;
     }));
     sclBar = d3.scale.linear().domain([0, ttl]).range([0, loc.w]);
-    if (loc.sortFlag) {
-      rct.sort(function(a, b){
-        return b.value - a.value;
-      }).transition().duration(1500).call(rctAttr);
-      return txt.sort(function(a, b){
-        return b.value - a.value;
-      }).transition().duration(1500).call(txtAttr);
-    } else {
-      rct.transition().call(rctAttr);
-      return txt.transition().call(txtAttr);
-    }
+    return rct.transition().call(rctAttr);
   };
   getSetter(build, loc);
   return build;
@@ -432,11 +386,11 @@ reBuildSankey = function(){
   loc.margin = {
     top: 20,
     left: 50,
-    right: 80,
+    right: 100,
     bottom: 50
   };
   loc.w = 400 - loc.margin.left - loc.margin.right;
-  loc.h = 900 - loc.margin.top - loc.margin.bottom;
+  loc.h = 800 - loc.margin.top - loc.margin.bottom;
   loc.group = null;
   loc.rawData = null;
   loc.dimension = null;
@@ -693,7 +647,7 @@ buildHeatMap = function(data){
   });
 };
 buildCrossfilter = function(json){
-  var crx, allGrp, ageDim, p23Dim, spdDim, cycDim, smDiffDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, smDiffGrp, lsExc, lsTbl;
+  var crx, allGrp, ageDim, p23Dim, spdDim, cycDim, sexGrp, ageGrp, p23Grp, spdGrp, cycGrp, lsExc, lsTbl;
   crx = crossfilter(json);
   allGrp = crx.groupAll();
   sexDim = crx.dimension(function(it){
@@ -714,9 +668,6 @@ buildCrossfilter = function(json){
   movDim = crx.dimension(function(it){
     return it.from_proid + "_" + it.po_id;
   });
-  smDiffDim = crx.dimension(function(it){
-    return it.from_proid === it.po_id;
-  });
   sexGrp = sexDim.group(function(it){
     return it;
   }).reduceSum(function(it){
@@ -733,7 +684,7 @@ buildCrossfilter = function(json){
     return it.count;
   });
   spdGrp = spdDim.group(function(it){
-    return Math.round(it / 5) * 5;
+    return Math.round(it / 1000) * 1000;
   }).reduceSum(function(it){
     return it.count;
   });
@@ -747,13 +698,8 @@ buildCrossfilter = function(json){
   }).reduceSum(function(it){
     return it.count;
   });
-  smDiffGrp = smDiffDim.group(function(it){
-    return it;
-  }).reduceSum(function(it){
-    return it.count;
-  });
-  lsExc = ["smDiff", "sex", "age", "p23", "spd"];
-  lsTbl = ["smDifftbl", "sextbl", "age_grptbl", "p23tbl", null];
+  lsExc = ["sex", "age", "p23", "spd"];
+  lsTbl = ["sextbl", "age_grptbl", "p23tbl", null];
   lsFunc = lsExc.map(function(it, i){
     var txtFunc, p;
     txtFunc = lsTbl[i] !== null ? ggl[lsTbl[i]] : null;
@@ -761,16 +707,13 @@ buildCrossfilter = function(json){
     if (it === "spd") {
       p = p.selector(".numberchart");
     }
-    if (it === "p23") {
-      p = p.sortFlag(true);
-    }
     p();
     return p;
   });
   sk = reBuildSankey().rawData(movGrp.all()).dimension(movDim);
   return sk();
 };
-d3.tsv("../transform_on_the_move/group/transfer_t30.tsv", function(err, tsvBody){
+d3.tsv("../transform/group/transfer_t10.tsv", function(err, tsvBody){
   return buildCrossfilter(
   tsv2Json(
   tsvBody));
