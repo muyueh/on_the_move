@@ -7,10 +7,18 @@ svg text {
 .numberchart {
   margin-left: 100px;
 }
-div {
+.mainchart,
+.sidechart,
+.numberchart {
   float: left;
   width: 300px;
 }
-.mainchart {
-  width: 300px;
+h4 {
+  color: #30b29c;
+  text-align: right;
+  margin-right: 20px;
+}
+.rectContainer {
+  position: absolute;
+  margin-top: 50px;
 }

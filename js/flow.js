@@ -14,9 +14,10 @@ ggl.snky = {
   bottom: 50
 };
 ggl.paths = null;
-ggl.clrOrange = "rgb(253, 141, 60)";
+ggl.clrOrange = '#30B29C';
 ggl.clrRed = "rgb(215, 48, 39)";
 ggl.clrBlue = "rgb(69, 117, 180)";
+ggl.svgttlsize = 16;
 lsExc = null;
 lsFunc = null;
 sk = null;
@@ -293,6 +294,7 @@ reBuildHorizonBar = function(){
   loc.txtTbl = null;
   loc.selector = ".sidechart";
   loc.sortFlag = false;
+  loc.fixSvgHeight = null;
   dt = null;
   sclBar = null;
   ttl = null;
@@ -351,7 +353,7 @@ reBuildHorizonBar = function(){
   txtAttr = function(it){
     return it.attr({
       "x": function(it, i){
-        return loc.w + 10;
+        return loc.w + loc.margin.left + loc.margin.right - 40;
       },
       "y": function(it, i){
         return i * (loc.rectHeight + loc.rectMargin) + 13;
@@ -365,7 +367,8 @@ reBuildHorizonBar = function(){
         } else {
           return 1;
         }
-      }
+      },
+      "text-anchor": "end"
     }).text(function(it, i){
       if (loc.txtTbl === null) {
         return it.key;
@@ -376,7 +379,11 @@ reBuildHorizonBar = function(){
   };
   build = function(){
     var dgrp;
-    loc.svg = reBuildSvg().h((loc.group.all().length - 1) * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector(loc.selector)();
+    if (loc.fixSvgHeight === null) {
+      loc.svg = reBuildSvg().h((loc.group.all().length - 1) * (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector(loc.selector)();
+    } else {
+      loc.svg = reBuildSvg().h(loc.fixSvgHeight).selector(loc.selector)();
+    }
     ttl = fold1(curry$(function(x$, y$){
       return x$ + y$;
     }), loc.group.all().map(function(it){
@@ -430,12 +437,12 @@ reBuildSankey = function(){
   var loc, highStyle, normStyle, hideStyle, tOrS, tOrSJson, toggleFilter, pathMouseover, pathMouseout, rectMouseover, rectMouseout, setTexts, setNumber, removePostFix, reInit, build;
   loc = {};
   loc.margin = {
-    top: 20,
-    left: 50,
-    right: 80,
+    top: 50,
+    left: 80,
+    right: 10,
     bottom: 50
   };
-  loc.w = 400 - loc.margin.left - loc.margin.right;
+  loc.w = 300 - loc.margin.left - loc.margin.right;
   loc.h = 900 - loc.margin.top - loc.margin.bottom;
   loc.group = null;
   loc.rawData = null;
@@ -634,7 +641,21 @@ reBuildSankey = function(){
       return removePostFix(
       ggl.nmtbl[it.name]);
     });
-    return loc.numbers = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setNumber);
+    loc.numbers = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setNumber);
+    loc.svg.append("text").text("归属").attr({
+      "x": -20,
+      "y": -20
+    }).style({
+      "font-size": ggl.svgttlsize + "px",
+      "fill": ggl.clrOrange
+    });
+    return loc.svg.append("text").text("就诊").attr({
+      "x": 165,
+      "y": -20
+    }).style({
+      "font-size": ggl.svgttlsize + "px",
+      "fill": ggl.clrOrange
+    });
   };
   build.render = function(){
     reInit();
@@ -757,12 +778,9 @@ buildCrossfilter = function(json){
   lsFunc = lsExc.map(function(it, i){
     var txtFunc, p;
     txtFunc = lsTbl[i] !== null ? ggl[lsTbl[i]] : null;
-    p = reBuildHorizonBar().group(eval(it + "Grp")).dimension(eval(it + "Dim")).txtTbl(txtFunc);
-    if (it === "spd") {
-      p = p.selector(".numberchart");
-    }
+    p = reBuildHorizonBar().group(eval(it + "Grp")).dimension(eval(it + "Dim")).selector("." + it + "Chart").txtTbl(txtFunc);
     if (it === "p23") {
-      p = p.sortFlag(true);
+      p = p.sortFlag(true).fixSvgHeight(410);
     }
     p();
     return p;

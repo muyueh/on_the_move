@@ -5,10 +5,24 @@ html
 		include ../j_piece/inheader
 		link(href="./css/flow.css", rel="stylesheet")
 		script(type="text/javascript", src="./js/sankey.js")
+		link(href="../header/header.css", rel="stylesheet")
 	body
-		div.mainchart
-		div.sidechart
-			div
-				h1#total
-		div.numberchart
+		include ../header/header
+		div.rectContainer
+			div.mainchart
+				h4 就诊流向
+			div.sidechart
+				div.smDiffChart
+					h4 本、異地就醫
+				div.sexChart
+					h4 性别分布
+				div.ageChart
+					h4 年龄分布
+				div.p23Chart
+					h4 专科分布
+				
+			div.sidechart
+				div.spdChart
+					h4 人均费用(千)
+				div.mapChart
 		script(type="text/javascript", src="./js/flow.js")

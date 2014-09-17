@@ -12,9 +12,12 @@ ggl.h = 800 - ggl.margin.top - ggl.margin.bottom
 ggl.snky = {right: 100, bottom: 50}
 ggl.paths = null
 
-ggl.clrOrange = "rgb(253, 141, 60)"
+ggl.clrOrange = '#30B29C'
+	# "rgb(253, 141, 60)"
 ggl.clrRed = "rgb(215, 48, 39)"
 ggl.clrBlue = "rgb(69, 117, 180)"
+
+ggl.svgttlsize = 16
 
 lsExc = null
 lsFunc = null
@@ -54,43 +57,6 @@ ggl.nmtbl = {
 	"650":	"新疆兵团"
 }
 
-# ggl.p23tbl = {
-# 	"01":	"预防保健科"
-# 	"02":	"全科医疗科"
-# 	"03":	"内科"
-# 	"04":	"外科"
-# 	"05":	"妇产科"
-# 	"06":	"妇女保健科"
-# 	"07":	"儿科"
-# 	"08":	"小儿外科"
-# 	"09":	"儿童保健科"
-# 	"10":	"眼科"
-# 	"11":	"耳鼻咽喉科"
-# 	"12":	"口腔科"
-# 	"13":	"皮肤科"
-# 	"14":	"医疗美容科"
-# 	"15":	"精神科"
-# 	"16":	"传染科"
-# 	"17":	"结核病科"
-# 	"18":	"地方病科"
-# 	"19":	"肿瘤科"
-# 	"20":	"急诊医学科"
-# 	"21":	"康复医学科"
-# 	"22":	"运动医学科"
-# 	"23":	"职业病科"
-# 	"24":	"临终关怀科"
-# 	"25":	"特种医学与军事医学科"
-# 	"26":	"麻醉科"
-# 	"27":	"疼痛科"
-# 	"28":	"重症医学科"
-# 	"30":	"医学检验科"
-# 	"31":	"病理科"
-# 	"32":	"医学影像科"
-# 	"50":	"中医科"
-# 	"51":	"民族医学科"
-# 	"52":	"中西医结合科"
-# 	"69":	"其他业务科室"
-# }
 
 ggl.p23tbl = {
 	"01":	"预保"
@@ -345,7 +311,7 @@ reBuildHorizonBar = ->
 	loc.txtTbl = null
 	loc.selector = ".sidechart"
 	loc.sortFlag = false
-
+	loc.fixSvgHeight = null
 
 	dt = null
 	sclBar = null
@@ -398,13 +364,14 @@ reBuildHorizonBar = ->
 		}
 	txtAttr = ->
 		it.attr {
-			"x":(it, i)-> loc.w + 10
+			"x":(it, i)-> loc.w + loc.margin.left + loc.margin.right - 40
 			"y":(it, i)-> i * (loc.rectHeight + loc.rectMargin) + 13
 		}
 		.style {
 			opacity: (it, i)-> 
 				w = (sclBar it.value)
 				if w < 10 then (w / 10) + 0.1 else 1
+			"text-anchor": "end"
 		}
 		.text (it, i)-> 
 			if loc.txtTbl is null then it.key else loc.txtTbl[it.key]
@@ -414,7 +381,10 @@ reBuildHorizonBar = ->
 	build = ->
 
 		##auto adjust chart length
-		loc.svg := (reBuildSvg!.h((loc.group.all!.length - 1)* (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector loc.selector)!
+		if loc.fixSvgHeight is null
+			loc.svg := (reBuildSvg!.h((loc.group.all!.length - 1)* (loc.rectHeight + loc.rectMargin) + loc.margin.top + loc.margin.bottom).selector loc.selector)!
+		else 
+			loc.svg := (reBuildSvg!.h( loc.fixSvgHeight ).selector loc.selector)!
 
 		ttl := (loc.group.all!.map -> it.value) |> fold1 (+), _
 		sclBar := d3.scale.linear!
@@ -487,8 +457,8 @@ reBuildHorizonBar = ->
 
 reBuildSankey = ->
 	loc = {}
-	loc.margin = {top: 20, left: 50, right: 80, bottom: 50}
-	loc.w = 400 - loc.margin.left - loc.margin.right
+	loc.margin = {top: 50, left: 80, right: 10, bottom: 50}
+	loc.w = 300 - loc.margin.left - loc.margin.right
 	loc.h = 900 - loc.margin.top - loc.margin.bottom
 
 	loc.group = null
@@ -726,6 +696,30 @@ reBuildSankey = ->
 			.append "text"
 			.call setNumber
 
+		loc.svg
+			.append "text"
+			.text "归属"
+			.attr {
+				"x": -20
+				"y": -20
+			}
+			.style {
+				"font-size": ggl.svgttlsize + "px"
+				"fill": ggl.clrOrange
+			}
+
+		loc.svg
+			.append "text"
+			.text "就诊"
+			.attr {
+				"x": 165
+				"y": -20
+			}
+			.style {
+				"font-size": ggl.svgttlsize + "px"
+				"fill": ggl.clrOrange
+			}
+
 
 	build.render = ->
 		reInit!
@@ -839,11 +833,15 @@ buildCrossfilter = (json)->
 		p = (reBuildHorizonBar!
 			.group (eval(it + "Grp"))
 			.dimension (eval(it + "Dim"))
+			.selector "." + it + "Chart"
 			.txtTbl txtFunc
 		)
 
-		if it is "spd" then p = p.selector ".numberchart"
-		if it is "p23" then p = p.sortFlag true
+		# if it is "spd" then p = p.selector ".numberchart"
+		if it is "p23"
+			p = p
+				.sortFlag true
+				.fixSvgHeight 410
 	
 		p!
 		p
