@@ -736,9 +736,9 @@ reBuildSankey = ->
 
 		loc.svg
 			.append "text"
-			.text "常駐地"
+			.text "患者常住地"
 			.attr {
-				"x": -20
+				"x": -50
 				"y": -20
 			}
 			.style {
@@ -748,9 +748,9 @@ reBuildSankey = ->
 
 		loc.svg
 			.append "text"
-			.text "就诊地"
+			.text "患者就诊地"
 			.attr {
-				"x": 165
+				"x": 105
 				"y": -20
 			}
 			.style {

@@ -660,15 +660,15 @@ reBuildSankey = function(){
       ggl.nmtbl[it.name]);
     });
     loc.numbers = loc.svg.append("g").selectAll(".node").data(loc.group.nodes).enter().append("text").call(setNumber);
-    loc.svg.append("text").text("常駐地").attr({
-      "x": -20,
+    loc.svg.append("text").text("患者常住地").attr({
+      "x": -50,
       "y": -20
     }).style({
       "font-size": ggl.svgttlsize + "px",
       "fill": ggl.clrOrange
     });
-    return loc.svg.append("text").text("就诊地").attr({
-      "x": 165,
+    return loc.svg.append("text").text("患者就诊地").attr({
+      "x": 105,
       "y": -20
     }).style({
       "font-size": ggl.svgttlsize + "px",

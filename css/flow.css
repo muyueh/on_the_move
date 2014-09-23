@@ -44,3 +44,7 @@ h4 {
   margin-left: 150px;
   margin-bottom: 15px;
 }
+.rightFoot {
+  right: 150px;
+  position: fixed;
+}
